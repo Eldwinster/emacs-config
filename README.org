@@ -1,0 +1,2 @@
+This is a readme.
+This is heavily based up [[https://github.com/tecosaur/emacs-config][tecosaur emacs config]], so you better go check his config.
