@@ -1405,7 +1405,6 @@ Nested snippets are good, so let's enable that.
 #+begin_src emacs-lisp
 (setq yas-triggers-in-field t)
 #+end_src
-
 *** String inflection
 
 For when you want to change the case pattern for a symbol.
@@ -2976,6 +2975,50 @@ and a button to copy the content of the block.
 (advice-add 'org-html-fixed-width     :around #'org-html-block-collapsable)
 (advice-add 'org-html-property-drawer :around #'org-html-block-collapsable)
 #+end_src
+*** LaTeX Export
+
+#+call: confpkg("ox-latex", after="ox-latex")
+
+**** Compiling
+
+By default Org uses ~pdflatex~ \times 3 + ~bibtex~. This simply won't do in our
+modern world. ~latexmk~ + ~biber~ (which is used automatically with ~latexmk~) is a
+simply superior combination.
+
+#+begin_src emacs-lisp
+;; org-latex-compilers = ("pdflatex" "xelatex" "lualatex"), which are the possible values for %latex
+(setq org-latex-pdf-process '("LC_ALL=en_US.UTF-8 latexmk -f -pdf -%latex -shell-escape -interaction=nonstopmode -output-directory=%o %f"))
+#+end_src
+
+While ~org-latex-pdf-process~ does support a function, and we could use that
+instead, this would no longer use the log buffer --- it's a bit blind, you give
+it the file name and expect it to do its thing.
+
+The default values of ~org-latex-compilers~ is given in commented form to see how
+~org-latex-pdf-process~ works with them.
+
+While the ~-%latex~ above is slightly hacky (~-pdflatex~ expects to be given a
+value) it allows us to leave ~org-latex-compilers~ unmodified.
+This is nice in case I open an org file that uses =#+LATEX_COMPILER= for example,
+it should still work.
+
+**** Class templates
+
+#+begin_src emacs-lisp :noweb no-export
+(with-eval-after-load 'ox-latex
+(add-to-list 'org-latex-classes
+             '("org-plain-latex"
+               "\\documentclass{article}
+           [NO-DEFAULT-PACKAGES]
+           [PACKAGES]
+           [EXTRA]"
+               ("\\section{%s}" . "\\section*{%s}")
+               ("\\subsection{%s}" . "\\subsection*{%s}")
+               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+               ("\\paragraph{%s}" . "\\paragraph*{%s}")
+               ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+#+end_src
+
 * Keybinds
 ** Buffer
 #+begin_src emacs-lisp :tangle no
