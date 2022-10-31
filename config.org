@@ -1474,7 +1474,11 @@ For editing systemd unit files
 (use-package! systemd
   :defer t)
 #+end_src
-
+** Programming language mode
+*** Fish
+#+begin_src emacs-lisp :tangle packages.el
+(package! fish-mode)
+#+end_src
 * Language configuration
 ** Org
 :PROPERTIES:
