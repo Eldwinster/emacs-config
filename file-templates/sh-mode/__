@@ -1,0 +1,16 @@
+# -*- mode: snippet -*-
+# --
+#!/usr/bin/env bash
+#
+# Script name: ${1:script name}
+# Description: ${2:description}
+# Dependencies: ${3:dependencies}
+# GitLab: https://www.github.com/eldwinster/${4:repo}
+# License: https://www.gitlab.com/dwt1/$4/LICENSE
+# Contributors: Edwin Elminster
+
+# Set with the flags "-e", "-u","-o pipefail" cause the script to fail
+# if certain things happen, which is a good thing.  Otherwise, we can
+# get hidden bugs that are hard to discover.
+set -euo pipefail
+$0

@@ -1405,6 +1405,24 @@ Nested snippets are good, so let's enable that.
 #+begin_src emacs-lisp
 (setq yas-triggers-in-field t)
 #+end_src
+*** File Template
+#+begin_src emacs-lisp
+(setq +file-templates-dir "~/.doom.d/file-templates/")
+#+end_src
+
+#+begin_src emacs-lisp
+(setq +file-templates-alist
+      '(
+        ;; ("/.*cheatsheet\\.org$" :trigger "__cheatsheet.org" :mode org-mode)
+        ("/report.*\\.org$" :trigger "__report.org" :mode org-mode)
+        ;; ("\\.org$" :trigger "__" :mode org-mode)
+        (org-mode)
+       ("/_.*\\.fish" :trigger "__function" :mode fish-mode)
+        (fish-mode)
+        (sh-mode)
+        (python-mode)
+        ))
+#+end_src
 *** String inflection
 
 For when you want to change the case pattern for a symbol.

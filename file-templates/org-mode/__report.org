@@ -1,0 +1,7 @@
+#+title: ${1:Report Title}
+#+description: ${2: Description}
+#+created: `(format-time-string "%Y-%m-%d %a %H:%M")`
+#+last_modified: [2022-10-31 Mon 02:48]
+#+setupfile: ~/org/latex-file-templates/latex-standard-preamble.org
+
+$0
