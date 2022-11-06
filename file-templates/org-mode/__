@@ -3,7 +3,7 @@
 # --
 #+title: ${1:Cheat Sheet Title}
 #+description: ${2: description}
-#+created: `(format-time-string "%Y-%m-%d %a %H:%M")`
+#+created: [`(format-time-string "%Y-%m-%d %a %H:%M")`]
 #+last_modified: %U
 
 $0
