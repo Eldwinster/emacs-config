@@ -1,0 +1,3 @@
+* Nothing to see here
+Go check this guy [[https://github.com/tecosaur/emacs-config][tecosaur]], this is how real emacs hacking looks like.
+Hats off to him.

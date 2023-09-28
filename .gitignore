@@ -1,0 +1,9 @@
+config.*
+!config.org
+init.el
+packages.el
+cli.el
+setup.sh
+
+!publish
+!publish/config.html
