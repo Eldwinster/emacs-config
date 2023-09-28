@@ -1,0 +1,9 @@
+# key: __init
+# name: Bascis variables
+# --
+src=\$0
+base=\${src##*/}
+# dir=\${src%"$base"}
+
+### lib functions ###
+source "\${0%/*}/path/to/share"

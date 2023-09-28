@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: timestamp
+# key: tt
+# --
+timestamp="$(date +"%Y%m%DT%H%M%S")"
