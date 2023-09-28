@@ -210,7 +210,7 @@ snippets                     ; my elves. They type so I don't have to
 ;; electric                     ; smarter, keyword-based electric-indent
 ;; (ibuffer +icons)             ; interactive buffer management
 undo                         ; persistent, smarter undo for your inevitable mistakes
-;; vc                           ; version-control and Emacs, sitting in a tree
+vc                           ; version-control and Emacs, sitting in a tree
 #+end_src
 #+name: doom-term
 #+begin_src emacs-lisp
@@ -977,6 +977,482 @@ anything to be run.
 
 #+begin_src emacs-lisp :noweb no-export
 <<run-setup()>>
+#+end_src
+
+* Packages
+** Loading instructions
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle no
+:END:
+
+This is where you install packages, by declaring them with the ~package!~ macro in
+=packages.el=, then running ~doom refresh~ on the command line.
+This file shouldn't be byte compiled.
+#+begin_src emacs-lisp :tangle "packages.el" :comments no
+;; -*- no-byte-compile: t; -*-
+#+end_src
+
+You'll then need to restart Emacs for your changes to take effect! Or at least,
+run =M-x doom/reload=.
+
+*Warning*: Don't disable core packages listed in =~/.config/emacs/core/packages.el=.
+Doom requires these, and disabling them may have terrible side effects.
+
+*** Packages in MELPA/ELPA/emacsmirror
+
+To install ~some-package~ from MELPA, ELPA or emacsmirror:
+#+begin_src emacs-lisp
+(package! some-package)
+#+end_src
+
+*** Packages from git repositories
+
+To install a package directly from a particular repo, you'll need to specify
+a ~:recipe~. You'll find documentation on what ~:recipe~ accepts [[https://github.com/raxod502/straight.el#the-recipe-format][here]]:
+#+begin_src emacs-lisp
+(package! another-package
+  :recipe (:host github :repo "username/repo"))
+#+end_src
+
+If the package you are trying to install does not contain a ~PACKAGENAME.el~
+file, or is located in a subdirectory of the repo, you'll need to specify
+~:files~ in the ~:recipe~:
+#+begin_src emacs-lisp
+(package! this-package
+  :recipe (:host github :repo "username/repo"
+           :files ("some-file.el" "src/lisp/*.el")))
+#+end_src
+
+*** Disabling built-in packages
+
+If you'd like to disable a package included with Doom, for whatever reason,
+you can do so here with the ~:disable~ property:
+#+begin_src emacs-lisp
+(package! builtin-package :disable t)
+#+end_src
+You can override the recipe of a built in package without having to specify
+all the properties for ~:recipe~. These will inherit the rest of its recipe
+from Doom or MELPA/ELPA/Emacsmirror:
+#+begin_src emacs-lisp
+(package! builtin-package :recipe (:nonrecursive t))
+(package! builtin-package-2 :recipe (:repo "myfork/package"))
+#+end_src
+
+Specify a ~:branch~ to install a package from a particular branch or tag.
+#+begin_src emacs-lisp
+(package! builtin-package :recipe (:branch "develop"))
+#+end_src
+** Convenience
+*** Emacs Everywhere
+Additionally, I'm going to make some personal choices that aren't made in the
+Doom module.
+
+#+begin_src emacs-lisp
+(use-package! emacs-everywhere
+  :if (daemonp)
+  :config
+  (require 'spell-fu)
+  (setq emacs-everywhere-major-mode-function #'org-mode
+        emacs-everywhere-frame-name-format "Edit ∷ %s — %s")
+  (defadvice! emacs-everywhere-raise-frame ()
+    :after #'emacs-everywhere-set-frame-name
+    (setq emacs-everywhere-frame-name (format emacs-everywhere-frame-name-format
+                                              (emacs-everywhere-app-class emacs-everywhere-current-app)
+                                              (truncate-string-to-width
+                                               (emacs-everywhere-app-title emacs-everywhere-current-app)
+                                               45 nil nil "…")))
+    ;; need to wait till frame refresh happen before really set
+    (run-with-timer 0.1 nil #'emacs-everywhere-raise-frame-1))
+  (defun emacs-everywhere-raise-frame-1 ()
+    (call-process "wmctrl" nil nil nil "-a" emacs-everywhere-frame-name)))
+#+end_src
+** Tools
+*** EVIL
+
+#+begin_quote
+From the =:editor evil= module.
+#+end_quote
+
+When I want to make a substitution, I want it to be global more often than not
+--- so let's make that the default.
+
+Now, EVIL cares a fair bit about keeping compatibility with Vim's default
+behaviour. I don't. There are some particular settings that I'd rather be
+something else, so let's change them.
+
+#+begin_src emacs-lisp
+(after! evil
+  (setq evil-ex-substitute-global t     ; I like my s/../.. to by global by default
+        evil-move-cursor-back nil       ; Don't move the block cursor when toggling insert mode
+        evil-kill-on-visual-paste nil)) ; Don't put overwritten text in the kill ring
+#+end_src
+
+I don't use ~evil-escape-mode~, so I may as well turn it off, I've heard it
+contributes a typing delay. I'm not sure it's much, but it is an extra
+~pre-command-hook~ that I don't benefit from, so...
+It seems that there's a dedicated package for this, so instead of just disabling
+the mode on startup, let's prevent installation of the package.
+#+begin_src emacs-lisp :tangle packages.el
+(package! evil-escape :disable t)
+#+end_src
+
+*** Consult
+
+#+begin_quote
+From the =:completion vertico= module.
+#+end_quote
+
+Since we're using [[Marginalia]] too, the separation between buffers and files is
+already clear, and there's no need for a different face.
+
+#+begin_src emacs-lisp
+(after! consult
+  (set-face-attribute 'consult-file nil :inherit 'consult-buffer)
+  (setf (plist-get (alist-get 'perl consult-async-split-styles-alist) :initial) ";"))
+#+end_src
+
+*** Dired
+#+begin_src emacs-lisp :tangle packages.el
+(package! dired-open)           ; let me open file with 'l' in dired mode
+(package! dired-toggle-sudo)
+(package! dired-subtree)
+#+end_src
+
+[[https://github.com/renard/dired-toggle-sudo/blob/master/dired-toggle-sudo.el][dired toggle sudo]]
+#+begin_src emacs-lisp :tangle no
+(require 'dired-toggle-sudo)
+(eval-after-load 'tramp
+  '(progn
+     ;; Allow to use: /sudo:user@host:/path/to/file
+     (add-to-list 'tramp-default-proxies-alist
+		  '(".*" "\\`.+\\'" "/ssh:%h:"))))
+#+end_src
+
+#+begin_src emacs-lisp
+;; Get file icons in dired
+(add-hook 'dired-mode-hook 'nerd-icons-dired-mode)
+;; With dired-open plugin, you can launch external programs for certain extensions
+;; For example, I set all .png files to open in 'sxiv' and all .mp4 files to open in 'mpv'
+(setq dired-open-extensions '(("gif" . "sxiv")
+                              ("jpg" . "sxiv")
+                              ("png" . "sxiv")
+                              ("mkv" . "mpv")
+                              ;; ("pdf" . "zathura")
+                              ("mp4" . "mpv")))
+
+(setq delete-by-moving-to-trash t
+      trash-directory "~/.local/share/Trash/files/")
+#+end_src
+
+*** Magit
+A git client for Emacs.  Often cited as a killer feature for Emacs.
+#+begin_src emacs-lisp
+(use-package magit)
+#+end_src
+**** doom emacs
+#+begin_src emacs-lisp
+(setq bare-git-doom-dir (concat "--git-dir=" (expand-file-name "~/.doom.d/.git")))
+(setq bare-work-doom-tree (concat "--work-tree=" (expand-file-name "~/.doom.d")))
+;; use magit on git bare repos like dotfiles repos, don't forget to change `bare-git-dir' and `bare-work-tree' to your needs
+(defun me/magit-status-doom ()
+  "set --git-dir and --work-tree in `magit-git-global-arguments' to `bare-git-dir' and `bare-work-tree' and calls `magit-status'"
+  (interactive)
+  (require 'magit-git)
+  (setq magit-git-global-arguments (remove bare-git-dot-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-dot-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-org-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-org-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-doom-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-doom-tree magit-git-global-arguments))
+  (add-to-list 'magit-git-global-arguments bare-git-doom-dir)
+  (add-to-list 'magit-git-global-arguments bare-work-doom-tree)
+  (call-interactively 'magit-status))
+#+end_src
+**** dotfiles
+#+begin_src emacs-lisp
+(setq bare-git-dot-dir (concat "--git-dir=" (expand-file-name "~/.dotfiles/.git")))
+(setq bare-work-dot-tree (concat "--work-tree=" (expand-file-name "~/.dotfiles")))
+;; use magit on git bare repos like dotfiles repos, don't forget to change `bare-git-dir' and `bare-work-tree' to your needs
+(defun me/magit-status-dotfiles ()
+  "set --git-dir and --work-tree in `magit-git-global-arguments' to `bare-git-dir' and `bare-work-tree' and calls `magit-status'"
+  (interactive)
+  (require 'magit-git)
+  (setq magit-git-global-arguments (remove bare-git-dot-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-dot-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-org-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-org-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-doom-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-doom-tree magit-git-global-arguments))
+  (add-to-list 'magit-git-global-arguments bare-git-dot-dir)
+  (add-to-list 'magit-git-global-arguments bare-work-dot-tree)
+  (call-interactively 'magit-status))
+#+end_src
+**** org version control
+#+begin_src emacs-lisp
+(setq bare-git-org-dir (concat "--git-dir=" (expand-file-name "~/org/.git")))
+(setq bare-work-org-tree (concat "--work-tree=" (expand-file-name "~/org")))
+;; use maggit on git bare repos like dotfiles repos, don't forget to change `bare-git-dir' and `bare-work-tree' to your needs
+(defun me/magit-status-org ()
+  "set --git-dir and --work-tree in `magit-git-global-arguments' to `bare-git-dir' and `bare-work-tree' and calls `magit-status'"
+  (interactive)
+  (require 'magit-git)
+  (setq magit-git-global-arguments (remove bare-git-dot-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-dot-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-org-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-org-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-doom-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-doom-tree magit-git-global-arguments))
+  (add-to-list 'magit-git-global-arguments bare-git-org-dir)
+  (add-to-list 'magit-git-global-arguments bare-work-org-tree)
+  (call-interactively 'magit-status))
+#+end_src
+**** projects
+#+begin_src emacs-lisp
+;; if you use `me/magit-status-bare' you cant use `magit-status' on other repos you have to unset `--git-dir' and `--work-tree'
+;; use `me/magit-status' insted it unsets those before calling `magit-status'
+(defun me/magit-status ()
+  "removes --git-dir and --work-tree in `magit-git-global-arguments' and calls `magit-status'"
+  (interactive)
+  (require 'magit-git)
+  (setq magit-git-global-arguments (remove bare-git-dot-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-dot-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-org-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-org-tree magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-git-doom-dir magit-git-global-arguments))
+  (setq magit-git-global-arguments (remove bare-work-doom-tree magit-git-global-arguments))
+  (call-interactively 'magit-status))
+#+end_src
+*** Company
+#+begin_quote
+From the =:completion company= module.
+#+end_quote
+
+It's nice to have completions almost all the time, in my opinion. Key strokes
+are just waiting to be saved!
+#+begin_src emacs-lisp
+(after! company
+  (setq company-idle-delay 0.1
+        company-minimum-prefix-length 2)
+  (setq company-show-numbers t))
+#+end_src
+Now, the improvements from ~precedent~ are mostly from remembering history, so
+let's improve that memory.
+#+begin_src emacs-lisp
+(setq-default history-length 1000)
+(setq-default prescient-history-length 1000)
+#+end_src
+
+#+begin_src emacs-lisp
+(after! sh-script
+  (set-company-backend! 'sh-mode
+    '(company-shell :with company-yasnippet)))
+#+end_src
+*** Projectile
+
+#+begin_quote
+From the =:core packages= module.
+#+end_quote
+
+Looking at documentation via =SPC h f= and =SPC h v= and looking at the source can
+add package src directories to projectile. This isn't desirable in my opinion.
+#+begin_src emacs-lisp
+(setq projectile-ignored-projects
+      (list "~/" "/tmp" (expand-file-name "straight/repos" doom-local-dir)))
+(defun projectile-ignored-project-function (filepath)
+  "Return t if FILEPATH is within any of `projectile-ignored-projects'"
+  (or (mapcar (lambda (p) (s-starts-with-p p filepath)) projectile-ignored-projects)))
+#+end_src
+
+*** Ispell
+**** Downloading dictionaries
+
+Let's get a nice big dictionary from [[http://app.aspell.net/create][SCOWL Custom List/Dictionary Creator]] with
+the following configuration
+- size :: 80 (huge)
+- spellings :: British(-ise) and Australian
+- spelling variants level :: 0
+- diacritics :: keep
+- extra lists :: hacker, roman numerals
+
+***** Hunspell
+
+#+begin_src shell :tangle (if (file-exists-p "/usr/share/myspell/en-custom.dic") "no" "setup.sh")
+cd /tmp
+curl -o "hunspell-en-custom.zip" 'http://app.aspell.net/create?max_size=80&spelling=GBs&spelling=AU&max_variant=0&diacritic=keep&special=hacker&special=roman-numerals&encoding=utf-8&format=inline&download=hunspell'
+unzip "hunspell-en-custom.zip"
+
+sudo chown root:root en-custom.*
+sudo mv en-custom.{aff,dic} /usr/share/myspell/
+#+end_src
+
+***** Aspell
+
+#+begin_src shell :tangle (if (file-expand-wildcards "/usr/lib64/aspell*/en-custom.multi") "no" "setup.sh")
+cd /tmp
+curl -o "aspell6-en-custom.tar.bz2" 'http://app.aspell.net/create?max_size=80&spelling=GBs&spelling=AU&max_variant=0&diacritic=keep&special=hacker&special=roman-numerals&encoding=utf-8&format=inline&download=aspell'
+tar -xjf "aspell6-en-custom.tar.bz2"
+
+cd aspell6-en-custom
+./configure && make && sudo make install
+#+end_src
+
+**** Configuration
+
+#+begin_src emacs-lisp
+(setq ispell-dictionary "en-custom")
+#+end_src
+
+Oh, and by the way, if ~company-ispell-dictionary~ is ~nil~, then
+~ispell-complete-word-dict~ is used instead, which once again when ~nil~ is
+~ispell-alternate-dictionary~, which at the moment maps to a plaintext version of
+the above.
+
+It seems reasonable to want to keep an eye on my personal dict, let's have it
+nearby (also means that if I change the 'main' dictionary I keep my addition).
+
+#+begin_src emacs-lisp
+(setq ispell-personal-dictionary
+      (expand-file-name "misc/ispell_personal" doom-private-dir))
+#+end_src
+
+*** TRAMP
+
+Another lovely Emacs feature, TRAMP stands for /Transparent Remote Access,
+Multiple Protocol/. In brief, it's a lovely way to wander around outside your
+local filesystem.
+
+**** Prompt recognition
+
+Unfortunately, when connecting to remote machines Tramp can be a wee pit picky
+with the prompt format. Let's try to get Bash, and be a bit more permissive with
+prompt recognition.
+
+#+begin_src emacs-lisp
+(after! tramp
+  (setenv "SHELL" "/bin/bash")
+  (setq tramp-shell-prompt-pattern "\\(?:^\\|\\)[^]#$%>\n]*#?[]#$%>] *\\(\\[[0-9;]*[a-zA-Z] *\\)*")) ;; default + 
+#+end_src
+
+**** Troubleshooting
+
+In case the remote shell is misbehaving, here are some things to try
+
+***** Zsh
+
+There are some escape code you don't want, let's make it behave more considerately.
+#+begin_src shell :eval no :tangle no
+if [[ "$TERM" == "dumb" ]]; then
+    unset zle_bracketed_paste
+    unset zle
+    PS1='$ '
+    return
+fi
+#+end_src
+
+**** Guix
+
+[[https://guix.gnu.org/][Guix]] puts some binaries that TRAMP looks for in unexpected locations.
+That's no problem though, we just need to help TRAMP find them.
+
+#+begin_src emacs-lisp
+(after! tramp
+  (appendq! tramp-remote-path
+            '("~/.guix-profile/bin" "~/.guix-profile/sbin"
+              "/run/current-system/profile/bin"
+              "/run/current-system/profile/sbin")))
+#+end_src
+
+*** YASnippet
+
+#+begin_quote
+From the =:editor snippets= module.
+#+end_quote
+
+Nested snippets are good, so let's enable that.
+#+begin_src emacs-lisp
+(setq yas-triggers-in-field t)
+#+end_src
+
+*** File Template
+#+begin_src emacs-lisp
+(setq +file-templates-dir "~/.doom.d/file-templates/")
+#+end_src
+
+#+begin_src emacs-lisp
+(setq +file-templates-alist
+      '(
+        ;; ("/.*cheatsheet\\.org$" :trigger "__cheatsheet.org" :mode org-mode)
+        ("/report.*\\.org$" :trigger "__report.org" :mode org-mode)
+        ;; ("\\.org$" :trigger "__" :mode org-mode)
+        (org-mode)
+       ;; ("/_.*\\.fish" :trigger "__function" :mode fish-mode)
+        (fish-mode)
+        (sh-mode)
+        (python-mode)
+        ))
+#+end_src
+*** String inflection
+
+For when you want to change the case pattern for a symbol.
+#+begin_src emacs-lisp :tangle packages.el
+(package! string-inflection :pin "fd7926ac17293e9124b31f706a4e8f38f6a9b855")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! string-inflection
+  :commands (string-inflection-all-cycle
+             string-inflection-toggle
+             string-inflection-camelcase
+             string-inflection-lower-camelcase
+             string-inflection-kebab-case
+             string-inflection-underscore
+             string-inflection-capital-underscore
+             string-inflection-upcase)
+  :init
+  (map! :leader :prefix ("!" . "naming convention")
+        :desc "cycle" "~" #'string-inflection-all-cycle
+        :desc "toggle" "t" #'string-inflection-toggle
+        :desc "CamelCase" "c" #'string-inflection-camelcase
+        :desc "downCase" "d" #'string-inflection-lower-camelcase
+        :desc "kebab-case" "k" #'string-inflection-kebab-case
+        :desc "under_score" "_" #'string-inflection-underscore
+        :desc "Upper_Score" "u" #'string-inflection-capital-underscore
+        :desc "UP_CASE" "U" #'string-inflection-upcase)
+  (after! evil
+    (evil-define-operator evil-operator-string-inflection (beg end _type)
+      "Define a new evil operator that cycles symbol casing."
+      :move-point nil
+      (interactive "<R>")
+      (string-inflection-all-cycle)
+      (setq evil-repeat-info '([?g ?~])))
+    (define-key evil-normal-state-map (kbd "g~") 'evil-operator-string-inflection)))
+#+end_src
+
+*** Smart parentheses
+
+#+begin_quote
+From the =:core packages= module.
+#+end_quote
+
+
+#+begin_src emacs-lisp
+(sp-local-pair
+ '(org-mode)
+ "<<" ">>"
+ :actions '(insert))
+#+end_src
+
+** File types
+*** Systemd
+
+For editing systemd unit files
+#+begin_src emacs-lisp :tangle packages.el
+(package! systemd :pin "b6ae63a236605b1c5e1069f7d3afe06ae32a7bae")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! systemd
+  :defer t)
 #+end_src
 
 * Keybinds
