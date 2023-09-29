@@ -1456,11 +1456,1518 @@ For editing systemd unit files
   :defer t)
 #+end_src
 
+* Language configuration
+** Org
+:PROPERTIES:
+:CUSTOM_ID: org
+:header-args:emacs-lisp: :tangle no :noweb-ref org-conf
+:END:
+Finally, because this section is fairly expensive to initialise, we'll wrap it
+in an src_elisp{(after! ...)} block.
+#+begin_src emacs-lisp :noweb no-export :tangle yes :noweb-prefix no :noweb-ref nil
+(after! org
+  <<org-conf>>)
+#+end_src
+*** Packages
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle packages.el :comments no
+:END:
+**** Extra functionality
+***** Auto tangle
+[[https://github.com/yilkalargaw/org-auto-tangle][org auto tangle]]
+#+begin_src emacs-lisp
+(package! org-auto-tangle)
+#+end_src
+
+Usage
+#+begin_src emacs-lisp :tangle yes
+(require 'org-auto-tangle)
+(add-hook 'org-mode-hook 'org-auto-tangle-mode)
+(setq org-auto-tangle-default nil)
+#+end_src
+
+***** Importing with Pandoc
+
+Sometimes I'm given non-org files, that's very sad. Luckily Pandoc offers a way
+to make that right again, and this package makes that even easier to do.
+#+begin_src emacs-lisp
+(package! org-pandoc-import
+  :recipe (:host github
+           :repo "tecosaur/org-pandoc-import"
+           :files ("*.el" "filters" "preprocessors")))
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-pandoc-import
+  :after org)
+#+end_src
+
+*** Behaviour
+**** Tweaking defaults
+
+#+begin_src emacs-lisp
+(setq org-directory "~/org"               ; Let's put files here.
+      org-agenda-files (list org-directory)                  ; Seems like the obvious place.
+      org-use-property-inheritance t       ; It's convenient to have properties inherited.
+      org-log-done 'time                   ; Having the time a item is done sounds convenient.
+      org-log-into-drawer t
+      org-list-allow-alphabetical t        ; Have a. A. a) A) list bullets.
+      org-catch-invisible-edits 'smart     ; Try not to accidently do weird stuff in invisible regions.
+      org-export-with-sub-superscripts '{} ; Don't treat lone _ / ^ as sub/superscripts, require _{} / ^{}.
+      org-image-actual-width '(0.9))       ; Make the in-buffer display closer to the exported result..
+#+end_src
+I also like the src_elisp{:comments} header-argument, so let's make that a
+default.
+#+begin_src emacs-lisp
+(setq org-babel-default-header-args
+      '((:session . "none")
+        (:results . "replace")
+        (:exports . "code")
+        (:cache . "no")
+        (:noweb . "no")
+        (:hlines . "no")
+        (:tangle . "no")
+        (:comments . "link")))
+#+end_src
+
+By default, ~visual-line-mode~ is turned =on=, and ~auto-fill-mode~ =off= by a hook.
+However this messes with tables in Org-mode, and other plaintext files (e.g.
+markdown, \LaTeX) so I'll turn it off for this, and manually enable it for more
+specific modes as desired.
+#+begin_src emacs-lisp
+(remove-hook 'text-mode-hook #'visual-line-mode)
+(add-hook 'text-mode-hook #'auto-fill-mode)
+#+end_src
+**** Extra functionality
+***** Org buffer creation
+
+Let's also make creating an org buffer just that little bit easier.
+#+begin_src emacs-lisp :tangle yes :noweb-ref none
+(evil-define-command evil-buffer-org-new (count file)
+  "Creates a new ORG buffer replacing the current window, optionally
+   editing a certain FILE"
+  :repeat nil
+  (interactive "P<f>")
+  (if file
+      (evil-edit file)
+    (let ((buffer (generate-new-buffer "*new org*")))
+      (set-window-buffer nil buffer)
+      (with-current-buffer buffer
+        (org-mode)))))
+#+end_src
+
+***** List bullet sequence
+
+I think it makes sense to have list bullets change with depth
+#+begin_src emacs-lisp
+(setq org-list-demote-modify-bullet '(("+" . "-") ("-" . "+") ("*" . "+") ("1." . "a.")))
+#+end_src
+
+***** Easier file links
+
+While ~org-insert-link~ is all very well and good, a large portion of the time I
+want to insert a file, and so it would be good to have a way to skip straight to
+that and avoid the description prompt. Looking at ~org-link-parameters~, we can
+see that the ="file"= link type uses the completion function
+~org-link-complete-file~, so let's use that to make a little file-link inserting
+function.
+
+#+begin_src emacs-lisp
+(defun +org-insert-file-link ()
+  "Insert a file link.  At the prompt, enter the filename."
+  (interactive)
+  (insert (format "[[%s]]" (org-link-complete-file))))
+#+end_src
+***** Citation
+****** org ref
+[[https://github.com/jkitchin/org-ref][org-ref]]
+#+begin_src emacs-lisp :tangle packages.el :noweb-ref none
+(package! org-ref
+  :recipe (:host github :repo "jkitchin/org-ref"))
+#+end_src
+Occasionally I want to cite something, and =org-ref= is /the/ package for that.
+
+Unfortunately, it ignores the ~file = {...}~ =.bib= keys though. Let's fix that.
+I separate files on =;=, which may just be a Zotero/BetterBibLaTeX thing, but it's
+a good idea in my case at least.
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! org-ref
+  ;; :after org
+  :defer t
+  :config
+  (defadvice! org-ref-open-bibtex-pdf-a ()
+    :override #'org-ref-open-bibtex-pdf
+    (save-excursion
+      (bibtex-beginning-of-entry)
+      (let* ((bibtex-expand-strings t)
+             (entry (bibtex-parse-entry t))
+             (key (reftex-get-bib-field "=key=" entry))
+             (pdf (or
+                   (car (-filter (lambda (f) (string-match-p "\\.pdf$" f))
+                                 (split-string (reftex-get-bib-field "file" entry) ";")))
+                   (funcall org-ref-get-pdf-filename-function key))))
+        (if (file-exists-p pdf)
+            (org-open-file pdf)
+          (ding)))))
+  (defadvice! org-ref-open-pdf-at-point-a ()
+    "Open the pdf for bibtex key under point if it exists."
+    :override #'org-ref-open-pdf-at-point
+    (interactive)
+    (let* ((results (org-ref-get-bibtex-key-and-file))
+           (key (car results))
+           (pdf-file (funcall org-ref-get-pdf-filename-function key)))
+      (with-current-buffer (find-file-noselect (cdr results))
+        (save-excursion
+          (bibtex-search-entry (car results))
+          (org-ref-open-bibtex-pdf))))))
+#+end_src
+****** bibtex completion
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(setq
+ bibtex-completion-notes-path "~/org/"
+ bibtex-completion-bibliography "~/Zotero/My Library.bib"
+ bibtex-completion-library-path "~/org/ref/pdfs/"
+ bibtex-completion-pdf-field "file"
+ bibtex-completion-format-citation-functions
+ '((org-mode . bibtex-completion-format-citation-cite))
+ bibtex-completion-notes-template-multiple-files
+ (concat
+  "#+TITLE: ${title}\n"
+  "#+ROAM_KEY: cite:${=key=}\n"
+  "* TODO Notes\n"
+  ":properties:\n"
+  ":Custom_ID: ${=key=}\n"
+  ":NOTER_DOCUMENT: %(orb-process-file-field \"${=key=}\")\n"
+  ":AUTHOR: ${author-abbrev}\n"
+  ":JOURNAL: ${journaltitle}\n"
+  ":DATE: ${date}\n"
+  ":YEAR: ${year}\n"
+  ":DOI: ${doi}\n"
+  ":URL: ${url}\n"
+  ":END:\n\n"))
+#+end_src
+****** org-roam-bibtext
+[[https://github.com/org-roam/org-roam-bibtex][org-roam-bibtex]]
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! org-roam-bibtex
+  :recipe (:host github :repo "org-roam/org-roam-bibtex"))
+;; When using org-roam via the `+roam` flag
+(unpin! org-roam)
+;; When using bibtex-completion via the `biblio` module
+(unpin! bibtex-completion helm-bibtex ivy-bibtex)
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! org-roam-bibtex
+  :after org-roam
+  :hook (org-mode . org-roam-bibtex-mode)
+  :config
+  (require 'org-ref)
+  (setq orb-preformat-keywords
+        '("citekey" "title" "url" "file" "author-or-editor" "keywords" "pdf" "doi" "author" "tags" "year" "author-bbrev")
+        orb-process-file-keyword t
+        orb-attached-file-extensions '("pdf")))
+#+end_src
+
+****** citar
+There's also the new =org-cite= though. It would be nice to try that out.
+
+To improve =org-cite=.
+
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! citar :pin "b6cd49ffb56824b8d1793b0c4268237b3d89fb45")
+(package! citeproc :pin "65e1c52486d788b9b0d4baba63645453b4abcfca")
+(package! org-cite-csl-activate :recipe (:host github :repo "andras-simonyi/org-cite-csl-activate") :pin "4fdb61c0f83b5d6db0d07dfd64d2a177fd46e931")
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! citar
+  :when (featurep! :completion vertico)
+  :custom
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar)
+  :config
+  (setq citar-bibliography
+        (let ((libfile-search-names '("library.json" "Library.json" "library.bib" "Library.bib"))
+              (libfile-dir "~/Zotero")
+              paths)
+          (dolist (libfile libfile-search-names)
+            (when (and (not paths)
+                       (file-exists-p (expand-file-name libfile libfile-dir)))
+              (setq paths (list (expand-file-name libfile libfile-dir)))))
+          paths))
+  (setq citar-symbols
+        `((file ,(nerd-icons-faicon "nf-fa-file_o" :face 'nerd-icons-green :v-adjust -0.1) . " ")
+          (note ,(nerd-icons-octicon "nf-oct-note" :face 'nerd-icons-blue :v-adjust -0.3) . " ")
+          (link ,(nerd-icons-octicon "nf-oct-link" :face 'nerd-icons-orange :v-adjust 0.01) . " "))))
+
+(use-package! citeproc
+  :defer t)
+#+end_src
+****** org cite
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! oc
+  :after org citar
+  :config
+  (require 'ox)
+  (setq org-cite-global-bibliography
+        (let ((paths (or citar-bibliography
+                         (bound-and-true-p bibtex-completion-bibliography))))
+          ;; Always return bibliography paths as list for org-cite.
+          (if (stringp paths) (list paths) paths)))
+  ;; setup export processor; default csl/citeproc-el, with biblatex for latex
+  (setq org-cite-export-processors
+        '((t csl))))
+
+  ;;; Org-cite processors
+(use-package! oc-biblatex
+  :after oc)
+
+(use-package! oc-csl
+  :after oc
+  :config
+  (setq org-cite-csl-styles-dir "~/Zotero/styles"))
+
+(use-package! oc-natbib
+  :after oc)
+
+(use-package! oc-csl-activate
+  :after oc
+  :config
+  (setq org-cite-csl-activate-use-document-style t)
+  (defun +org-cite-csl-activate/enable ()
+    (interactive)
+    (setq org-cite-activate-processor 'csl-activate)
+    (add-hook! 'org-mode-hook '((lambda () (cursor-sensor-mode 1)) org-cite-csl-activate-render-all))
+    (defadvice! +org-cite-csl-activate-render-all-silent (orig-fn)
+      :around #'org-cite-csl-activate-render-all
+      (with-silent-modifications (funcall orig-fn)))
+    (when (eq major-mode 'org-mode)
+      (with-silent-modifications
+        (save-excursion
+          (goto-char (point-min))
+          (org-cite-activate (point-max)))
+        (org-cite-csl-activate-render-all)))
+    (fmakunbound #'+org-cite-csl-activate/enable)))
+#+end_src
+****** org ref to org cite
+I think it would be nice to have a function to convert =org-ref= citations to
+=org-cite=
+#+begin_src emacs-lisp
+(after! oc
+  (defun org-ref-to-org-cite ()
+    "Attempt to convert org-ref citations to org-cite syntax."
+    (interactive)
+    (let* ((cite-conversions '(("cite" . "//b") ("Cite" . "//bc")
+                               ("nocite" . "/n")
+                               ("citep" . "") ("citep*" . "//f")
+                               ("parencite" . "") ("Parencite" . "//c")
+                               ("citeauthor" . "/a/f") ("citeauthor*" . "/a")
+                               ("citeyear" . "/na/b")
+                               ("Citep" . "//c") ("Citealp" . "//bc")
+                               ("Citeauthor" . "/a/cf") ("Citeauthor*" . "/a/c")
+                               ("autocite" . "") ("Autocite" . "//c")
+                               ("notecite" . "/l/b") ("Notecite" . "/l/bc")
+                               ("pnotecite" . "/l") ("Pnotecite" . "/l/bc")))
+           (cite-regexp (rx (regexp (regexp-opt (mapcar #'car cite-conversions) t))
+                            ":" (group (+ (not (any "\n 	,.)]}")))))))
+      (save-excursion
+        (goto-char (point-min))
+        (while (re-search-forward cite-regexp nil t)
+          (message (format "[cite%s:@%s]"
+                           (cdr (assoc (match-string 1) cite-conversions))
+                           (match-string 2)))
+          (replace-match (format "[cite%s:@%s]"
+                                 (cdr (assoc (match-string 1) cite-conversions))
+                                 (match-string 2))))))))
+#+end_src
+
+***** Spellcheck
+My spelling is atrocious, so let's get flycheck going.
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook 'turn-on-flyspell)
+#+end_src
+***** CREATED and LAST_MODIFIED headers
+[[https://org-roam.discourse.group/t/update-a-field-last-modified-at-save/321/2][source]]
+#+begin_src emacs-lisp
+(defun zp/org-find-time-file-property (property &optional anywhere)
+  "Return the position of the time file PROPERTY if it exists.
+When ANYWHERE is non-nil, search beyond the preamble."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((first-heading
+           (save-excursion
+             (re-search-forward org-outline-regexp-bol nil t))))
+      (when (re-search-forward (format "^#\\+%s:" property)
+                               (if anywhere nil first-heading)
+                               t)
+        (point)))))
+
+(defun zp/org-has-time-file-property-p (property &optional anywhere)
+  "Return the position of time file PROPERTY if it is defined.
+As a special case, return -1 if the time file PROPERTY exists but
+is not defined."
+  (when-let ((pos (zp/org-find-time-file-property property anywhere)))
+    (save-excursion
+      (goto-char pos)
+      (if (and (looking-at-p " ")
+               (progn (forward-char)
+                      (org-at-timestamp-p 'lax)))
+          pos
+        -1))))
+
+(defun zp/org-set-time-file-property (property &optional anywhere pos)
+  "Set the time file PROPERTY in the preamble.
+When ANYWHERE is non-nil, search beyond the preamble.
+If the position of the file PROPERTY has already been computed,
+it can be passed in POS."
+  (when-let ((pos (or pos
+                      (zp/org-find-time-file-property property))))
+    (save-excursion
+      (goto-char pos)
+      (if (looking-at-p " ")
+          (forward-char)
+        (insert " "))
+      (delete-region (point) (line-end-position))
+      (let* ((now (format-time-string "[%Y-%m-%d %a %H:%M]")))
+        (insert now)))))
+
+(defun zp/org-set-last-modified ()
+  "Update the LAST_MODIFIED file property in the preamble."
+  (when (derived-mode-p 'org-mode)
+    (zp/org-set-time-file-property "LAST_MODIFIED")))
+#+end_src
+
+#+begin_src emacs-lisp
+(add-hook 'before-save-hook #'zp/org-set-last-modified)
+#+end_src
+***** cdlatex
+
+It's also nice to be able to use ~cdlatex~.
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook 'turn-on-org-cdlatex)
+#+end_src
+
+It's handy to be able to quickly insert environments with =C-c }=. I almost always
+want to edit them afterwards though, so let's make that happen by default.
+#+begin_src emacs-lisp
+(defadvice! org-edit-latex-emv-after-insert ()
+  :after #'org-cdlatex-environment-indent
+  (org-edit-latex-environment))
+#+end_src
+
+At some point in the future it could be good to investigate [[https://scripter.co/splitting-an-org-block-into-two/][splitting org blocks]].
+Likewise [[https://archive.casouri.cat/note/2020/insert-math-symbol-in-emacs/][this]] looks good for symbols.
+
+***** LSP support in ~src~ blocks
+
+Now, by default, LSPs don't really function at all in ~src~ blocks.
+#+begin_src emacs-lisp
+(cl-defmacro lsp-org-babel-enable (lang)
+  "Support LANG in org source code block."
+  (setq centaur-lsp 'lsp-mode)
+  (cl-check-type lang stringp)
+  (let* ((edit-pre (intern (format "org-babel-edit-prep:%s" lang)))
+         (intern-pre (intern (format "lsp--%s" (symbol-name edit-pre)))))
+    `(progn
+       (defun ,intern-pre (info)
+         (let ((file-name (->> info caddr (alist-get :file))))
+           (unless file-name
+             (setq file-name (make-temp-file "babel-lsp-")))
+           (setq buffer-file-name file-name)
+           (lsp-deferred)))
+       (put ',intern-pre 'function-documentation
+            (format "Enable lsp-mode in the buffer of org source block (%s)."
+                    (upcase ,lang)))
+       (if (fboundp ',edit-pre)
+           (advice-add ',edit-pre :after ',intern-pre)
+         (progn
+           (defun ,edit-pre (info)
+             (,intern-pre info))
+           (put ',edit-pre 'function-documentation
+                (format "Prepare local buffer environment for org source block (%s)."
+                        (upcase ,lang))))))))
+(defvar org-babel-lang-list
+  '("go" "python" "ipython" "bash" "sh" "haskell" "yaml"))
+(dolist (lang org-babel-lang-list)
+  (eval `(lsp-org-babel-enable ,lang)))
+#+end_src
+
+**** Capture
+
+Let's setup some org-capture templates, and make them visually nice to access.
+
+~doct~ (Declarative Org Capture Templates) seems to be a nicer way to
+set up org-capture.
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! doct
+  :recipe (:host github :repo "progfolio/doct")
+  :pin "8464809754f3316d5a2fdcf3c01ce1e8736b323b")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! doct
+  :commands doct)
+#+end_src
+
+#+begin_src emacs-lisp :noweb no-export
+(after! org-capture
+;; (("t" "Personal todo" entry
+;;   (file+headline +org-capture-todo-file "Inbox")
+;;   "* [ ] %?\n%i\n%a" :prepend t)
+;;  ("n" "Personal notes" entry
+;;   (file+headline +org-capture-notes-file "Inbox")
+;;   "* %u %?\n%i\n%a" :prepend t)
+;;  ("j" "Journal" entry
+;;   (file+olp+datetree +org-capture-journal-file)
+;;   "* %U %?\n%i\n%a" :prepend t)
+;;  ("p" "Templates for projects")
+;;  ("pt" "Project-local todo" entry
+;;   (file+headline +org-capture-project-todo-file "Inbox")
+;;   "* TODO %?\n%i\n%a" :prepend t)
+;;  ("pn" "Project-local notes" entry
+;;   (file+headline +org-capture-project-notes-file "Inbox")
+;;   "* %U %?\n%i\n%a" :prepend t)
+;;  ("pc" "Project-local changelog" entry
+;;   (file+headline +org-capture-project-changelog-file "Unreleased")
+;;   "* %U %?\n%i\n%a" :prepend t)
+;;  ("o" "Centralized templates for projects")
+;;  ("ot" "Project todo" entry #'+org-capture-central-project-todo-file "* TODO %?\n %i\n %a" :heading "Tasks" :prepend nil)
+;;  ("on" "Project notes" entry #'+org-capture-central-project-notes-file "* %U %?\n %i\n %a" :heading "Notes" :prepend t)
+;;  ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t))
+
+  (defvar +org-capture-bookmarks (expand-file-name "bookmarks.org" org-directory))
+
+  (setq org-capture-templates
+  (doct '(
+          ("Personal todo" :keys "t"
+           :file +org-capture-todo-file
+           :prepend t
+           :type entry
+           :template ("* %{todo-state} %^{Description}"
+                      ":PROPERTIES:"
+                      ":Created: %T"
+                      ":END:"
+                      "%?")
+           :children (("TODO"  :keys "1"
+                       :headline   "TODOs"
+                       :todo-state "TODO")))
+          ("Bookmark" :keys "b"
+           :file +org-capture-bookmarks
+           :prepend t
+           :type entry
+           :headline "Bookmarks"
+           :template ("* %(org-cliplink-capture) %?"
+                      ":PROPERTIES:"
+                      ":Created: %T"
+                      ":END:"
+                      ""))
+          ))))
+#+end_src
+
+**** Roam
+Fantastic package which allows you to backlink etc.
+[[https://github.com/org-roam/org-roam][roam]]
+***** Basic settings
+#+begin_src emacs-lisp
+(setq
+ org-roam-directory "~/org/"
+ org-roam-completion-everywhere nil
+ org-roam-mode-section-functions
+ (list #'org-roam-backlinks-section
+       #'org-roam-reflinks-section))
+;; #'org-roam-unlinked-references-section))
+(org-roam-db-autosync-mode)
+#+end_src
+
+That said, if the directory doesn't exist we likely don't want to be using roam.
+Since we don't want to trigger errors (which will happen as soon as roam tries
+to initialise), let's not load roam.
+#+begin_src emacs-lisp :noweb-ref none :tangle (if (file-exists-p "~/org/") "no" "packages.el")
+(package! org-roam :disable t)
+#+end_src
+***** Modeline file name
+
+All those numbers! It's messy. Let's adjust this in a similar way that I have in
+the [[*Window title][Window title]].
+#+begin_src emacs-lisp
+(defadvice! doom-modeline--buffer-file-name-roam-aware-a (orig-fun)
+  :around #'doom-modeline-buffer-file-name ; takes no args
+  (if (s-contains-p org-roam-directory (or buffer-file-name ""))
+      (replace-regexp-in-string
+       "\\(?:^\\|.*/\\)\\([0-9]\\{4\\}\\)\\([0-9]\\{2\\}\\)\\([0-9]\\{2\\}\\)[0-9]*-"
+       "🢔(\\1-\\2-\\3) "
+       (subst-char-in-string ?_ ?  buffer-file-name))
+    (funcall orig-fun)))
+#+end_src
+
+***** Graph view
+
+Org-roam is nice by itself, but there are so /extra/ nice packages which integrate
+with it.
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! org-roam-ui :recipe (:host github :repo "org-roam/org-roam-ui" :files ("*.el" "out")) :pin "9474a254390b1e42488a1801fed5826b32a8030b")
+(package! websocket :pin "82b370602fa0158670b1c6c769f223159affce9b") ; dependency of `org-roam-ui'
+#+end_src
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! websocket
+  :after org-roam)
+
+(use-package! org-roam-ui
+  :after org-roam
+  :commands org-roam-ui-open
+  :hook (org-roam . org-roam-ui-mode)
+  :config
+  (require 'org-roam) ; in case autoloaded
+  (defun org-roam-ui-open ()
+    "Ensure the server is active, then open the roam graph."
+    (interactive)
+    (unless org-roam-ui-mode (org-roam-ui-mode 1))
+    (browse-url-xdg-open (format "http://localhost:%d" org-roam-ui-port))))
+#+end_src
+
+***** Org-roam-capture templates
+
+Attention ~immediate-finish~ ne prend pas en compte la template quand c'est un
+file et ne prend pas en compte les prompts
+
+#+begin_src emacs-lisp
+(after! org-roam
+  (setq org-roam-capture-templates
+        `(
+          ("d" "Default" plain
+           (file "~/org/templates/DefaultTemplate.org")
+           :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n")
+           :unnarrowed t)
+          ("r" "random")
+          ("rp" "Personne: Nom Prenom" plain
+           (file "~/org/templates/PersonTemplate.org")
+           :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                              "#+title: ${title}\n")
+           :unnarrowed t)
+          ("z" "Zettelkasten")
+          ("zz" "Zettel" plain
+           (file "~/org/templates/ZettelTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
+          ("zl" "Literature zettel" plain
+           (file "~/org/templates/LiteratureTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
+          ("zr" "Reference zettel" plain
+           (file "~/org/templates/ReferenceTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
+          ("zi" "Register zettel" plain
+           (file "~/org/templates/RegisterTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
+          )))
+#+end_src
+
+***** Org-noter
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! org-noter-pdftools)
+#+end_src
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! org-noter
+  :after (:any org pdf-view)
+  :config
+(use-package org-noter
+  :config
+  (setq
+   org-noter-notes-window-location 'other-frame
+   org-noter-always-create-frame nil
+   org-noter-hide-other nil
+   org-noter-notes-search-path '("~/org")))
+(require 'org-noter-pdftools))
+
+(use-package org-pdftools
+  :hook (org-mode . org-pdftools-setup-link))
+
+(use-package org-noter-pdftools
+  :after org-noter
+  :config
+  ;; Add a function to ensure precise note is inserted
+  (defun org-noter-pdftools-insert-precise-note (&optional toggle-no-questions)
+    (interactive "P")
+    (org-noter--with-valid-session
+     (let ((org-noter-insert-note-no-questions (if toggle-no-questions
+                                                   (not org-noter-insert-note-no-questions)
+                                                 org-noter-insert-note-no-questions))
+           (org-pdftools-use-isearch-link t)
+           (org-pdftools-use-freepointer-annot t))
+       (org-noter-insert-note (org-noter--get-precise-info)))))
+
+  ;; fix https://github.com/weirdNox/org-noter/pull/93/commits/f8349ae7575e599f375de1be6be2d0d5de4e6cbf
+  (defun org-noter-set-start-location (&optional arg)
+    "When opening a session with this document, go to the current location.
+With a prefix ARG, remove start location."
+    (interactive "P")
+    (org-noter--with-valid-session
+     (let ((inhibit-read-only t)
+           (ast (org-noter--parse-root))
+           (location (org-noter--doc-approx-location (when (called-interactively-p 'any) 'interactive))))
+       (with-current-buffer (org-noter--session-notes-buffer session)
+         (org-with-wide-buffer
+          (goto-char (org-element-property :begin ast))
+          (if arg
+              (org-entry-delete nil org-noter-property-note-location)
+            (org-entry-put nil org-noter-property-note-location
+                           (org-noter--pretty-print-location location))))))))
+  (with-eval-after-load 'pdf-annot
+    (add-hook 'pdf-annot-activate-handler-functions #'org-noter-pdftools-jump-to-note)))
+#+end_src
+***** Custom functions
+****** Regex
+#+begin_src emacs-lisp
+(defun org-roam-rg-search ()
+  "Search org-roam directory using consult-ripgrep. With live-preview."
+  (interactive)
+  (let ((consult-ripgrep-args "rg --null --ignore-case --type org --line-buffered --max-columns=500 --no-heading --line-number --context 2 . "))
+    (consult-ripgrep org-roam-directory)))
+                                        ;(global-set-key (kbd "C-c rr") 'bms/org-roam-rg-search)
+#+end_src
+
+Some other rg
+
+#+begin_src emacs-lisp
+(after! consult
+  (setq consult-ripgrep-args
+        "rg --null --line-buffered --color=never --max-columns=1000 --path-separator /\
+   --smart-case --no-heading --line-number --context=3 ."
+        ))
+#+end_src
+****** System crafters
+Sépare le code en bloque et explique chaque fonction on y verra plus claire
+[[https://systemcrafters.net/build-a-second-brain-in-emacs/5-org-roam-hacks/][source]]
+
+#+begin_src emacs-lisp
+(defvar org-roam-capture-immediate-template
+  (append (car org-roam-capture-templates) '(:immediate-finish t)))
+(defun org-roam-insert-immediate (arg &rest args)
+  (interactive "P")
+  (let ((args (push arg args))
+        (org-roam-capture-templates (list org-roam-capture-immediate-template)))
+    (apply #'org-roam-node-insert args)))
+
+(defun my/org-roam-capture-inbox ()
+  (interactive)
+  (org-roam-capture- :node (org-roam-node-create)
+                     :templates '(("i" "inbox" plain "* %?"
+                                   :if-new (file+head "Inbox.org" "#+title: Inbox\n")))))
+(defun my/org-roam-open-inbox ()
+  (interactive)
+  (find-file "~/org/Inbox.org"))
+
+(defun my/org-roam-filter-by-tag (tag-name)
+  (lambda (node)
+    (member tag-name (org-roam-node-tags node))))
+
+(defun my/org-roam-list-notes-by-tag (tag-name)
+  (mapcar #'org-roam-node-file
+          (seq-filter
+           (my/org-roam-filter-by-tag tag-name)
+
+           (org-roam-node-list))))
+
+(defun my/org-roam-project-finalize-hook ()
+  "Adds the captured project file to `org-agenda-files' if the
+capture was not aborted."
+  ;; Remove the hook since it was added temporarily
+  (remove-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
+
+  ;; Add project file to the agenda list if the capture was confirmed
+  (unless org-note-abort
+    (with-current-buffer (org-capture-get :buffer)
+      (add-to-list 'org-agenda-files (buffer-file-name)))))
+
+(defun my/org-roam-find-project ()
+  (interactive)
+  ;; Add the project file to the agenda after capture is finished
+  (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
+
+  ;; Select a project file to open, creating it if necessary
+  (org-roam-node-find
+   nil
+   nil
+   (my/org-roam-filter-by-tag "project")))
+;; :templates
+;; '(("gp" "project" plain "* Goals\n\n%?\n\n* Tasks\n\n** TODO task1\n\n* Dates\n\n"
+;;    :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+category: ${title}\n#+filetags: project")
+;;    :unnarrowed t))))
+
+(defun my/org-roam-capture-task ()
+  (interactive)
+  ;; Add the project file to the agenda after capture is finished
+  (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
+
+  ;; Capture the new task, creating the project file if necessary
+  (org-roam-capture- :node (org-roam-node-read
+                            nil
+                            (my/org-roam-filter-by-tag "project"))
+                     :templates '(("p" "project" plain "** TODO %?"
+                                   :if-new (file+head+olp "%${slug}.org"
+                                                          "#+title: ${title}\n#+category: ${title}\n#+filetags: project"
+                                                          ("Tasks"))))))
+
+#+end_src
+
+I'm not using those function because with ~org-super-agenda~ and
+~org-capture-notes~ is a better alternative. I'm keeping them for example that I
+can perhaps use in an other way.
+
+#+begin_src emacs-lisp :noweb-ref none :tangle no
+(defun my/org-roam-copy-todo-to-today ()
+  (interactive)
+  (let ((org-refile-keep t) ;; Set this to nil to delete the original!
+        (org-roam-dailies-capture-templates
+         '(("t" "tasks" entry "%?"
+            :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n" ("Tasks")))))
+        (org-after-refile-insert-hook #'save-buffer)
+        today-file
+        pos)
+    (save-window-excursion
+      (org-roam-dailies--capture (current-time) t)
+      (setq today-file (buffer-file-name))
+      (setq pos (point)))
+
+    ;; Only refile if the target file is different than the current file
+    (unless (equal (file-truename today-file)
+                   (file-truename (buffer-file-name)))
+      (org-refile nil nil (list "Tasks" today-file nil pos)))))
+
+(add-to-list 'org-after-todo-state-change-hook
+             (lambda ()
+               (when (equal org-state "DONE")
+                 (my/org-roam-copy-todo-to-today))))
+(defun my/org-roam-filter-by-tag (tag-name)
+  (lambda (node)
+    (member tag-name (org-roam-node-tags node))))
+
+(defun my/org-roam-list-notes-by-tag (tag-name)
+  (mapcar #'org-roam-node-file
+          (seq-filter
+           (my/org-roam-filter-by-tag tag-name)
+
+           (org-roam-node-list))))
+
+(defun my/org-roam-refresh-agenda-list ()
+  (interactive)
+  (setq org-agenda-files (my/org-roam-list-notes-by-tag "project")))
+
+;; Build the agenda list the first time for the session
+(my/org-roam-refresh-agenda-list)
+#+end_src
+****** my org functions
+I want to have emacs open some org file in emacs as a tty instance inside zellij.
+This is because in ~Qtile~~ I'm unable for now to open ~emacsclient -nw~ in st
+as a scratchpad. St would open as a scratchpad and then ~emacs~ would be
+considered as a regular window. Hence, this workaround. See zellij's layouts.
+
+#+begin_src emacs-lisp
+;; (defvar +org-my-bookmarks (expand-file-name "bookmarks.org" org-directory))
+(defun my/org-roam-open-bookmarks ()
+  (interactive)
+  (find-file +org-my-bookmarks))
+#+end_src
+
+#+begin_src emacs-lisp
+;; (defvar +org-my-register (expand-file-name ".*main.register\.org" org-directory))
+(defun my/org-roam-open-register ()
+  (interactive)
+  (find-file (car (directory-files (expand-file-name org-directory) t ".*main.register.org"))))
+#+end_src
+
+**** Snippet Helpers
+
+I often want to set =src-block= headers, and it's a pain to
++ type them out
++ remember what the accepted values are
++ oh, and specifying the same language again and again
+
+We can solve this in three steps
++ having one-letter snippets, conditioned on ~(point)~ being within a src header
++ creating a nice prompt showing accepted values and the current default
++ pre-filling the =src-block= language with the last language used
+
+For header args, the keys I'll use are
++ =r= for =:results=
++ =e= for =:exports=
++ =v= for =:eval=
++ =s= for =:session=
++ =d= for =:dir=
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(defun +yas/org-src-header-p ()
+  "Determine whether `point' is within a src-block header or header-args."
+  (pcase (org-element-type (org-element-context))
+    ('src-block (< (point) ; before code part of the src-block
+                   (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                   (forward-line 1)
+                                   (point))))
+    ('inline-src-block (< (point) ; before code part of the inline-src-block
+                          (save-excursion (goto-char (org-element-property :begin (org-element-context)))
+                                          (search-forward "]{")
+                                          (point))))
+    ('keyword (string-match-p "^header-args" (org-element-property :value (org-element-context))))))
+#+end_src
+
+Now let's write a function we can reference in yasnippets to produce a nice
+interactive way to specify header args.
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(defun +yas/org-prompt-header-arg (arg question values)
+  "Prompt the user to set ARG header property to one of VALUES with QUESTION.
+The default value is identified and indicated. If either default is selected,
+or no selection is made: nil is returned."
+  (let* ((src-block-p (not (looking-back "^#\\+property:[ \t]+header-args:.*" (line-beginning-position))))
+         (default
+           (or
+            (cdr (assoc arg
+                        (if src-block-p
+                            (nth 2 (org-babel-get-src-block-info t))
+                          (org-babel-merge-params
+                           org-babel-default-header-args
+                           (let ((lang-headers
+                                  (intern (concat "org-babel-default-header-args:"
+                                                  (+yas/org-src-lang)))))
+                             (when (boundp lang-headers) (eval lang-headers t)))))))
+            ""))
+         default-value)
+    (setq values (mapcar
+                  (lambda (value)
+                    (if (string-match-p (regexp-quote value) default)
+                        (setq default-value
+                              (concat value " "
+                                      (propertize "(default)" 'face 'font-lock-doc-face)))
+                      value))
+                  values))
+    (let ((selection (consult--read values :prompt question :default default-value)))
+      (unless (or (string-match-p "(default)$" selection)
+                  (string= "" selection))
+        selection))))
+#+end_src
+
+Finally, we fetch the language information for new source blocks.
+
+Since we're getting this info, we might as well go a step further and also
+provide the ability to determine the most popular language in the buffer that
+doesn't have any =header-args= set for it (with =#+properties=).
+
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(defun +yas/org-src-lang ()
+  "Try to find the current language of the src/header at `point'.
+Return nil otherwise."
+  (let ((context (org-element-context)))
+    (pcase (org-element-type context)
+      ('src-block (org-element-property :language context))
+      ('inline-src-block (org-element-property :language context))
+      ('keyword (when (string-match "^header-args:\\([^ ]+\\)" (org-element-property :value context))
+                  (match-string 1 (org-element-property :value context)))))))
+
+(defun +yas/org-last-src-lang ()
+  "Return the language of the last src-block, if it exists."
+  (save-excursion
+    (beginning-of-line)
+    (when (re-search-backward "^[ \t]*#\\+begin_src" nil t)
+      (org-element-property :language (org-element-context)))))
+
+(defun +yas/org-most-common-no-property-lang ()
+  "Find the lang with the most source blocks that has no global header-args, else nil."
+  (let (src-langs header-langs)
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+begin_src" nil t)
+        (push (+yas/org-src-lang) src-langs))
+      (goto-char (point-min))
+      (while (re-search-forward "^[ \t]*#\\+property: +header-args" nil t)
+        (push (+yas/org-src-lang) header-langs)))
+
+    (setq src-langs
+          (mapcar #'car
+                  ;; sort alist by frequency (desc.)
+                  (sort
+                   ;; generate alist with form (value . frequency)
+                   (cl-loop for (n . m) in (seq-group-by #'identity src-langs)
+                            collect (cons n (length m)))
+                   (lambda (a b) (> (cdr a) (cdr b))))))
+
+    (car (cl-set-difference src-langs header-langs :test #'string=))))
+#+end_src
+*** Exporting
+**** General settings
+
+By default Org only exports the first three levels of headings as ... headings.
+This is rather unfortunate as my documents frequently stray far beyond three
+levels of depth. The two main formats I care about exporting to are LaTeX and
+HTML. When using an =article= class, LaTeX headlines go from =\section=,
+=\subsection=, =\subsubsection=, and =\paragraph= to =\subgraph= --- /five/ levels.
+HTML5 has six levels of headings (=<h1>= to =<h6>=), but first level Org headings
+get exported as =<h2>= elements --- leaving /five/ usable levels.
+
+As such, it would seem to make sense to recognise the first /five/ levels of Org
+headings when exporting.
+
+#+begin_src emacs-lisp
+(setq org-export-headline-levels 5) ; I like nesting
+#+end_src
+
+I'm also going to make use of an item in =ox-extra= so that I can add an =:ignore:=
+tag to headings for the content to be kept, but the heading itself ignored
+(unlike =:noexport:= which ignored both heading and content). This is useful when
+I want to use headings to provide a structure for writing that doesn't appear in
+the final documents.
+#+begin_src emacs-lisp
+(require 'ox-extra)
+(ox-extras-activate '(ignore-headlines))
+#+end_src
+**** Exporting Org code
+
+With all our Org config and hooks, exporting an Org code block when using
+a font-lock based method can produce undesirable results. To address this, we
+can tweak ~+org-babel-mode-alist~ when exporting.
+
+#+begin_src emacs-lisp
+(defun +org-mode--fontlock-only-mode ()
+  "Just apply org-mode's font-lock once."
+  (let (org-mode-hook
+        org-hide-leading-stars
+        org-hide-emphasis-markers)
+    (org-set-font-lock-defaults)
+    (font-lock-ensure))
+  (setq-local major-mode #'fundamental-mode))
+
+(defun +org-export-babel-mask-org-config (_backend)
+  "Use `+org-mode--fontlock-only-mode' instead of `org-mode'."
+  (setq-local org-src-lang-modes
+              (append org-src-lang-modes
+                      (list (cons "org" #'+org-mode--fontlock-only)))))
+
+(add-hook 'org-export-before-processing-hook #'+org-export-babel-mask-org-config)
+#+end_src
+**** Simple http server
+#+begin_src emacs-lisp :noweb-ref none :tangle yes
+(use-package! simple-httpd
+  :ensure t)
+#+end_src
+
+*** HTML Export
+:PROPERTIES:
+:header-args:emacs-lisp: :noweb-ref ox-html-conf
+:END:
+
+I want to tweak a whole bunch of things. While I'll want my tweaks almost all
+the time, occasionally I may want to test how something turns out using a more
+default config. With that in mind, a global minor mode seems like the most
+appropriate architecture to use.
+#+begin_src emacs-lisp
+(define-minor-mode org-fancy-html-export-mode
+  "Toggle my fabulous org export tweaks. While this mode itself does a little bit,
+the vast majority of the change in behaviour comes from switch statements in:
+ - `org-html-template-fancier'
+ - `org-html--build-meta-info-extended'
+ - `org-html-src-block-collapsable'
+ - `org-html-block-collapsable'
+ - `org-html-table-wrapped'
+ - `org-html--format-toc-headline-colapseable'
+ - `org-html--toc-text-stripped-leaves'
+ - `org-export-html-headline-anchor'"
+  :global t
+  :init-value t
+  (if org-fancy-html-export-mode
+      (setq org-html-style-default org-html-style-fancy
+            org-html-meta-tags #'org-html-meta-tags-fancy
+            org-html-checkbox-type 'html-span)
+    (setq org-html-style-default org-html-style-plain
+          org-html-meta-tags #'org-html-meta-tags-default
+          org-html-checkbox-type 'html)))
+#+end_src
+
+There are quite a few instances where I want to modify variables defined in
+=ox-html=, so we'll wrap the contents of this section in a
+src_elisp{(after! ox-html ...)} block.
+#+begin_src emacs-lisp :noweb no-export :noweb-ref org-conf
+(require 'org-roam-export)
+(after! ox-html
+  <<ox-html-conf>>
+)
+#+end_src
+**** Publish
+#+begin_src emacs-lisp :noweb-ref ox-html-conf
+(require 'ox-publish)
+(setq org-publish-project-alist
+      '(
+        ("org-notes"
+         :base-directory "~/org"
+         :exclude "^[^bi]"
+         :publishing-directory "~/Projects/Sites/orgBlog/www"
+         :recursive t
+         :publishing-function org-html-publish-to-html
+         :headline-levels 4
+         :auto-preamble t)
+        ("org-static-media"
+         :base-directory "~/org/media"
+         :base-extension "css\\|js\\|png\\|jpeg\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf\\|ico"
+         :publishing-directory "~/Projects/Sites/orgBlog/www/media"
+         :recursive t
+         :publishing-function org-publish-attachment
+         )
+        ("org-static-file"
+         :base-directory "~/org/ref/files/"
+         :base-extension "txt\\|sh\\|py"
+         :publishing-directory "~/Projects/Sites/orgBlog/www/ref/files"
+         :recursive t
+         :publishing-function org-publish-attachment
+         )
+        ("org" :components ("org-notes" "org-static-media" "org-static-file"))
+        ))
+#+end_src
+**** Extra header content
+
+We want to tack on a few more bits to the start of the body. Unfortunately, there
+doesn't seem to be any nice variable or hook, so we'll just override the
+relevant function.
+
+This is done to allow me to add the date and author to the page header,
+implement a CSS-only light/dark theme toggle, and a sprinkle of [[https://ogp.me/][Open Graph]]
+metadata.
+#+begin_src emacs-lisp
+(defadvice! org-html-template-fancier (orig-fn contents info)
+  "Return complete document string after HTML conversion.
+CONTENTS is the transcoded contents string.  INFO is a plist
+holding export options. Adds a few extra things to the body
+compared to the default implementation."
+  :around #'org-html-template
+  (if (or (not org-fancy-html-export-mode) (bound-and-true-p org-msg-export-in-progress))
+      (funcall orig-fn contents info)
+    (concat
+     (when (and (not (org-html-html5-p info)) (org-html-xhtml-p info))
+       (let* ((xml-declaration (plist-get info :html-xml-declaration))
+              (decl (or (and (stringp xml-declaration) xml-declaration)
+                        (cdr (assoc (plist-get info :html-extension)
+                                    xml-declaration))
+                        (cdr (assoc "html" xml-declaration))
+                        "")))
+         (when (not (or (not decl) (string= "" decl)))
+           (format "%s\n"
+                   (format decl
+                           (or (and org-html-coding-system
+                                    (fboundp 'coding-system-get)
+                                    (coding-system-get org-html-coding-system 'mime-charset))
+                               "iso-8859-1"))))))
+     (org-html-doctype info)
+     "\n"
+     (concat "<html"
+             (cond ((org-html-xhtml-p info)
+                    (format
+                     " xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"%s\" xml:lang=\"%s\""
+                     (plist-get info :language) (plist-get info :language)))
+                   ((org-html-html5-p info)
+                    (format " lang=\"%s\"" (plist-get info :language))))
+             ">\n")
+     "<head>\n"
+     (org-html--build-meta-info info)
+     (org-html--build-head info)
+     (org-html--build-mathjax-config info)
+     "</head>\n"
+     "<body>\n<input type='checkbox' id='theme-switch'><div id='page'><label id='switch-label' for='theme-switch'></label>"
+     (let ((link-up (org-trim (plist-get info :html-link-up)))
+           (link-home (org-trim (plist-get info :html-link-home))))
+       (unless (and (string= link-up "") (string= link-home ""))
+         (format (plist-get info :html-home/up-format)
+                 (or link-up link-home)
+                 (or link-home link-up))))
+     ;; Preamble.
+     (org-html--build-pre/postamble 'preamble info)
+     ;; Document contents.
+     (let ((div (assq 'content (plist-get info :html-divs))))
+       (format "<%s id=\"%s\">\n" (nth 1 div) (nth 2 div)))
+     ;; Document title.
+     (when (plist-get info :with-title)
+       (let ((title (and (plist-get info :with-title)
+                         (plist-get info :title)))
+             (subtitle (plist-get info :subtitle))
+             (html5-fancy (org-html--html5-fancy-p info)))
+         (when title
+           (format
+            (if html5-fancy
+                "<header class=\"page-header\">%s\n<h1 class=\"title\">%s</h1>\n%s</header>"
+              "<h1 class=\"title\">%s%s</h1>\n")
+            (if (or (plist-get info :with-date)
+                    (plist-get info :with-author))
+                (concat "<div class=\"page-meta\">"
+                        (when (plist-get info :with-date)
+                          (org-export-data (plist-get info :date) info))
+                        (when (and (plist-get info :with-date) (plist-get info :with-author)) ", ")
+                        (when (plist-get info :with-author)
+                          (org-export-data (plist-get info :author) info))
+                        "</div>\n")
+              "")
+            (org-export-data title info)
+            (if subtitle
+                (format
+                 (if html5-fancy
+                     "<p class=\"subtitle\" role=\"doc-subtitle\">%s</p>\n"
+                   (concat "\n" (org-html-close-tag "br" nil info) "\n"
+                           "<span class=\"subtitle\">%s</span>\n"))
+                 (org-export-data subtitle info))
+              "")))))
+     contents
+     (format "</%s>\n" (nth 1 (assq 'content (plist-get info :html-divs))))
+     ;; Postamble.
+     (org-html--build-pre/postamble 'postamble info)
+     ;; Possibly use the Klipse library live code blocks.
+     (when (plist-get info :html-klipsify-src)
+       (concat "<script>" (plist-get info :html-klipse-selection-script)
+               "</script><script src=\""
+               org-html-klipse-js
+               "\"></script><link rel=\"stylesheet\" type=\"text/css\" href=\""
+               org-html-klipse-css "\"/>"))
+     ;; Closing document.
+     "</div>\n</body>\n</html>")))
+#+end_src
+
+I think it would be nice if "Table of Contents" brought you back to the top of
+the page. Well, since we've done this much advising already...
+#+begin_src emacs-lisp
+(defadvice! org-html-toc-linked (depth info &optional scope)
+  "Build a table of contents.
+
+Just like `org-html-toc', except the header is a link to \"#\".
+
+DEPTH is an integer specifying the depth of the table.  INFO is
+a plist used as a communication channel.  Optional argument SCOPE
+is an element defining the scope of the table.  Return the table
+of contents as a string, or nil if it is empty."
+  :override #'org-html-toc
+  (let ((toc-entries
+         (mapcar (lambda (headline)
+                   (cons (org-html--format-toc-headline headline info)
+                         (org-export-get-relative-level headline info)))
+                 (org-export-collect-headlines info depth scope))))
+    (when toc-entries
+      (let ((toc (concat "<div id=\"text-table-of-contents\">"
+                         (org-html--toc-text toc-entries)
+                         "</div>\n")))
+        (if scope toc
+          (let ((outer-tag (if (org-html--html5-fancy-p info)
+                               "nav"
+                             "div")))
+            (concat (format "<%s id=\"table-of-contents\">\n" outer-tag)
+                    (let ((top-level (plist-get info :html-toplevel-hlevel)))
+                      (format "<h%d><a href=\"#\" style=\"color:inherit; text-decoration: none;\">%s</a></h%d>\n"
+                              top-level
+                              (org-html--translate "Table of Contents" info)
+                              top-level))
+                    toc
+                    (format "</%s>\n" outer-tag))))))))
+#+end_src
+
+Lastly, let's pile on some metadata. This gives my pages nice embeds.
+#+begin_src emacs-lisp
+(defvar org-html-meta-tags-opengraph-image
+  '(:image "https://eldwinster.github.io/media/screenshot/baldursGate1Logo.png"
+    :type "image/png"
+    :width "200"
+    :height "200"
+    :alt "Baldur's Gate 1 Logo")
+  "Plist of og:image:PROP properties and their value, for use in `org-html-meta-tags-fancy'.")
+
+(defun org-html-meta-tags-fancy (info)
+  "Use the INFO plist to construct the meta tags, as described in `org-html-meta-tags'."
+  (let ((title (org-html-plain-text
+                (org-element-interpret-data (plist-get info :title)) info))
+        (author (and (plist-get info :with-author)
+                     (let ((auth (plist-get info :author)))
+                       ;; Return raw Org syntax.
+                       (and auth (org-html-plain-text
+                                  (org-element-interpret-data auth) info))))))
+    (append
+     (list
+      (when (org-string-nw-p author)
+        (list "name" "author" author))
+      (when (org-string-nw-p (plist-get info :description))
+        (list "name" "description"
+              (plist-get info :description)))
+      '("name" "generator" "org mode")
+      '("name" "theme-color" "#77aa99")
+      '("property" "og:type" "article")
+      (list "property" "og:title" title)
+      (let ((subtitle (org-export-data (plist-get info :subtitle) info)))
+        (when (org-string-nw-p subtitle)
+          (list "property" "og:description" subtitle))))
+     (when org-html-meta-tags-opengraph-image
+       (list (list "property" "og:image" (plist-get org-html-meta-tags-opengraph-image :image))
+             (list "property" "og:image:type" (plist-get org-html-meta-tags-opengraph-image :type))
+             (list "property" "og:image:width" (plist-get org-html-meta-tags-opengraph-image :width))
+             (list "property" "og:image:height" (plist-get org-html-meta-tags-opengraph-image :height))
+             (list "property" "og:image:alt" (plist-get org-html-meta-tags-opengraph-image :alt))))
+     (list
+      (when (org-string-nw-p author)
+        (list "property" "og:article:author:first_name" (car (s-split-up-to " " author 2))))
+      (when (and (org-string-nw-p author) (s-contains-p " " author))
+        (list "property" "og:article:author:last_name" (cadr (s-split-up-to " " author 2))))
+      (list "property" "og:article:published_time"
+            (format-time-string
+             "%FT%T%z"
+             (or
+              (when-let ((date-str (cadar (org-collect-keywords '("DATE")))))
+                (unless (string= date-str (format-time-string "%F"))
+                  (ignore-errors (encode-time (org-parse-time-string date-str)))))
+              (if buffer-file-name
+                  (file-attribute-modification-time (file-attributes buffer-file-name))
+                (current-time)))))
+      (when buffer-file-name
+        (list "property" "og:article:modified_time"
+              (format-time-string "%FT%T%z" (file-attribute-modification-time (file-attributes buffer-file-name)))))))))
+
+(unless (functionp #'org-html-meta-tags-default)
+  (defalias 'org-html-meta-tags-default #'ignore))
+(setq org-html-meta-tags #'org-html-meta-tags-fancy)
+#+end_src
+
+**** Custom CSS/JS
+
+The default org HTML export is ... alright, but we can really jazz it up.
+[[https://lepisma.xyz][lepisma.xyz]] has a really nice style, and from and org export too!
+Suffice to say I've snatched it, with a few of my own tweaks applied.
+
+#+begin_src html :tangle misc/org-export-header.html :comments no
+<link rel="icon" href="https://eldwinster.github.io/media/icon/baldursGate1Logo.ico" type="image/ico" />
+
+<link rel="preload" as="font" crossorigin="anonymous" type="font/woff2" href="https://tecosaur.com/resources/org/etbookot-roman-webfont.woff2">
+<link rel="preload" as="font" crossorigin="anonymous" type="font/woff2" href="https://tecosaur.com/resources/org/etbookot-italic-webfont.woff2">
+<link rel="preload" as="font" crossorigin="anonymous" type="font/woff2" href="https://tecosaur.com/resources/org/Merriweather-TextRegular.woff2">
+<link rel="preload" as="font" crossorigin="anonymous" type="font/woff2" href="https://tecosaur.com/resources/org/Merriweather-TextItalic.woff2">
+<link rel="preload" as="font" crossorigin="anonymous" type="font/woff2" href="https://tecosaur.com/resources/org/Merriweather-TextBold.woff2">
+#+end_src
+
+#+begin_src emacs-lisp
+(setq org-html-style-plain org-html-style-default
+      org-html-htmlize-output-type 'css
+      org-html-doctype "html5"
+      org-html-html5-fancy t)
+
+(defun org-html-reload-fancy-style ()
+  (interactive)
+  (setq org-html-style-fancy
+        (concat (f-read-text (expand-file-name "misc/org-export-header.html" doom-private-dir))
+                "<script>\n"
+                (f-read-text (expand-file-name "misc/org-css/main.js" doom-private-dir))
+                "</script>\n<style>\n"
+                (f-read-text (expand-file-name "misc/org-css/main.min.css" doom-private-dir))
+                "</style>"))
+  (when org-fancy-html-export-mode
+    (setq org-html-style-default org-html-style-fancy)))
+(org-html-reload-fancy-style)
+#+end_src
+
+**** Collapsable src and example blocks
+
+By wrapping the ~<pre>~ element in a ~<details>~ block, we can obtain collapsable
+blocks with no CSS, though we will toss a little in anyway to have this looking
+somewhat spiffy.
+
+Since this collapsability seems useful to have on by default for certain chunks
+of code, it would be nice if you could set it with =#+attr_html: :collapsed t=.
+
+It would be nice to also have a corresponding global / session-local way of
+setting this, but I haven't quite been able to get that working (yet).
+
+#+begin_src emacs-lisp
+(defvar org-html-export-collapsed nil)
+(eval '(cl-pushnew '(:collapsed "COLLAPSED" "collapsed" org-html-export-collapsed t)
+                   (org-export-backend-options (org-export-get-backend 'html))))
+(add-to-list 'org-default-properties "EXPORT_COLLAPSED")
+#+end_src
+
+We can take our src block modification a step further, and add a gutter on the
+side of the src block containing both an anchor referencing the current block,
+and a button to copy the content of the block.
+
+#+name: Src blocks
+#+begin_src emacs-lisp
+(defadvice! org-html-src-block-collapsable (orig-fn src-block contents info)
+  "Wrap the usual <pre> block in a <details>"
+  :around #'org-html-src-block
+  (if (or (not org-fancy-html-export-mode) (bound-and-true-p org-msg-export-in-progress))
+      (funcall orig-fn src-block contents info)
+    (let* ((properties (cadr src-block))
+           (lang (mode-name-to-lang-name
+                  (plist-get properties :language)))
+           (name (plist-get properties :name))
+           (ref (org-export-get-reference src-block info))
+           (collapsed-p (member (or (org-export-read-attribute :attr_html src-block :collapsed)
+                                    (plist-get info :collapsed))
+                                '("y" "yes" "t" t "true" "all"))))
+      (format
+       "<details id='%s' class='code'%s><summary%s>%s</summary>
+<div class='gutter'>
+<a href='#%s'>#</a>
+<button title='Copy to clipboard' onclick='copyPreToClipbord(this)'>⎘</button>\
+</div>
+%s
+</details>"
+       ref
+       (if collapsed-p "" " open")
+       (if name " class='named'" "")
+       (concat
+        (when name (concat "<span class=\"name\">" name "</span>"))
+        "<span class=\"lang\">" lang "</span>")
+       ref
+       (if name
+           (replace-regexp-in-string (format "<pre\\( class=\"[^\"]+\"\\)? id=\"%s\">" ref) "<pre\\1>"
+                                     (funcall orig-fn src-block contents info))
+         (funcall orig-fn src-block contents info))))))
+
+(defun mode-name-to-lang-name (mode)
+  (or (cadr (assoc mode
+                   '(("asymptote" "Asymptote")
+                     ("awk" "Awk")
+                     ("C" "C")
+                     ("clojure" "Clojure")
+                     ("css" "CSS")
+                     ("D" "D")
+                     ("ditaa" "ditaa")
+                     ("dot" "Graphviz")
+                     ("calc" "Emacs Calc")
+                     ("emacs-lisp" "Emacs Lisp")
+                     ("fortran" "Fortran")
+                     ("gnuplot" "gnuplot")
+                     ("haskell" "Haskell")
+                     ("hledger" "hledger")
+                     ("java" "Java")
+                     ("js" "Javascript")
+                     ("latex" "LaTeX")
+                     ("ledger" "Ledger")
+                     ("lisp" "Lisp")
+                     ("lilypond" "Lilypond")
+                     ("lua" "Lua")
+                     ("matlab" "MATLAB")
+                     ("mscgen" "Mscgen")
+                     ("ocaml" "Objective Caml")
+                     ("octave" "Octave")
+                     ("org" "Org mode")
+                     ("oz" "OZ")
+                     ("plantuml" "Plantuml")
+                     ("processing" "Processing.js")
+                     ("python" "Python")
+                     ("R" "R")
+                     ("ruby" "Ruby")
+                     ("sass" "Sass")
+                     ("scheme" "Scheme")
+                     ("screen" "Gnu Screen")
+                     ("sed" "Sed")
+                     ("sh" "shell")
+                     ("sql" "SQL")
+                     ("sqlite" "SQLite")
+                     ("forth" "Forth")
+                     ("io" "IO")
+                     ("J" "J")
+                     ("makefile" "Makefile")
+                     ("maxima" "Maxima")
+                     ("perl" "Perl")
+                     ("picolisp" "Pico Lisp")
+                     ("scala" "Scala")
+                     ("shell" "Shell Script")
+                     ("ebnf2ps" "ebfn2ps")
+                     ("cpp" "C++")
+                     ("abc" "ABC")
+                     ("coq" "Coq")
+                     ("groovy" "Groovy")
+                     ("bash" "bash")
+                     ("csh" "csh")
+                     ("ash" "ash")
+                     ("dash" "dash")
+                     ("ksh" "ksh")
+                     ("mksh" "mksh")
+                     ("posh" "posh")
+                     ("ada" "Ada")
+                     ("asm" "Assembler")
+                     ("caml" "Caml")
+                     ("delphi" "Delphi")
+                     ("html" "HTML")
+                     ("idl" "IDL")
+                     ("mercury" "Mercury")
+                     ("metapost" "MetaPost")
+                     ("modula-2" "Modula-2")
+                     ("pascal" "Pascal")
+                     ("ps" "PostScript")
+                     ("prolog" "Prolog")
+                     ("simula" "Simula")
+                     ("tcl" "tcl")
+                     ("tex" "LaTeX")
+                     ("plain-tex" "TeX")
+                     ("verilog" "Verilog")
+                     ("vhdl" "VHDL")
+                     ("xml" "XML")
+                     ("nxml" "XML")
+                     ("conf" "Configuration File"))))
+      mode))
+#+end_src
+
+#+name: Example, fixed width, and property blocks
+#+begin_src emacs-lisp
+(defun org-html-block-collapsable (orig-fn block contents info)
+  "Wrap the usual block in a <details>"
+  (if (or (not org-fancy-html-export-mode) (bound-and-true-p org-msg-export-in-progress))
+      (funcall orig-fn block contents info)
+    (let ((ref (org-export-get-reference block info))
+          (type (pcase (car block)
+                  ('property-drawer "Properties")))
+          (collapsed-default (pcase (car block)
+                               ('property-drawer t)
+                               (_ nil)))
+          (collapsed-value (org-export-read-attribute :attr_html block :collapsed))
+          (collapsed-p (or (member (org-export-read-attribute :attr_html block :collapsed)
+                                   '("y" "yes" "t" t "true"))
+                           (member (plist-get info :collapsed) '("all")))))
+      (format
+       "<details id='%s' class='code'%s>
+<summary%s>%s</summary>
+<div class='gutter'>\
+<a href='#%s'>#</a>
+<button title='Copy to clipboard' onclick='copyPreToClipbord(this)'>⎘</button>\
+</div>
+%s\n
+</details>"
+       ref
+       (if (or collapsed-p collapsed-default) "" " open")
+       (if type " class='named'" "")
+       (if type (format "<span class='type'>%s</span>" type) "")
+       ref
+       (funcall orig-fn block contents info)))))
+
+(advice-add 'org-html-example-block   :around #'org-html-block-collapsable)
+(advice-add 'org-html-fixed-width     :around #'org-html-block-collapsable)
+(advice-add 'org-html-property-drawer :around #'org-html-block-collapsable)
+#+end_src
 * Keybinds
 ** Buffer
 #+begin_src emacs-lisp :tangle no
 (map! :leader :prefix ("b" . "buffer")
       :desc "List all buffer" "i" #'list-buffers)
+#+end_src
+** Company
+#+begin_src emacs-lisp
+(after! (:or lsp eshell)
+  (map! :map company-active-map
+        "TAB" #'company-complete-selection)
+  (map! :map lsp-mode-map
+        "TAB" #'company-indent-or-complete-common))
 #+end_src
 ** Dashboard quick actions
 When using the dashboard, there are often a small number of actions I will take.
@@ -1544,6 +3051,118 @@ Now that the dashboard is so convenient, I'll want to make it easier to get to.
       :desc "magit-status-org" "g w"'me/magit-status-org
       :desc "magit-status" "g g"'me/magit-status)
 #+end_src
+** Org
+:PROPERTIES:
+:CUSTOM_ID: org
+:header-args:emacs-lisp: :tangle no :noweb-ref org-conf
+:END:
+*** Babel
+#+begin_src emacs-lisp
+(map! :leader :prefix ("c" . "code")
+      :desc "Tangle block" "[" #'org-babel-tangle
+      :desc "Tangle source" "]" #'org-babel-detangle)
+#+end_src
+*** Buffer
+
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix "b"
+       :desc "New empty Org buffer" "o" #'+evil-buffer-org-new))
+#+end_src
+
+*** Link
+Now we'll just add that under the Org mode link localleader for convenience.
+#+begin_src emacs-lisp
+(map! :after org
+      :map org-mode-map
+      :localleader
+      :desc "Insert citation" "@" #'org-cite-insert
+      "l f" #'+org-insert-file-link)
+
+(map! :map org-mode-map
+      :ni "C-c c" #'org-cite-insert
+      :ni "C-c f" #'org-ref-insert-cite-link
+      :ni "M-i" #'org-roam-insert-immediate)
+#+end_src
+
+*** Motion
+There also seem to be a few keybindings which use =hjkl=, but miss arrow key equivalents.
+#+begin_src emacs-lisp
+(map! :map evil-org-mode-map
+      :after evil-org
+      :n "g k" #'org-backward-heading-same-level
+      :n "g j" #'org-forward-heading-same-level
+      :n "g h" #'org-up-element
+      :n "g l" #'org-down-element)
+#+end_src
+*** Noter
+#+begin_src emacs-lisp
+(map! :map org-noter-doc-mode-map
+      "M-p" #'org-noter-insert-precise-note
+      "M-i" #'org-noter-insert-note
+      "M-b" #'org-noter-sync-prev-note
+      "M-n" #'org-noter-sync-current-note
+      "M-m" #'org-noter-sync-next-note)
+#+end_src
+*** Org tree
+#+begin_src emacs-lisp
+(map! :map org-mode-map
+      :after org
+      :localleader
+      :desc "Outline" "O" #'org-ol-tree)
+#+end_src
+*** Preview
+#+begin_src emacs-lisp
+(map! :leader :prefix ("t" . "toggle")
+      :desc "latex block preview" "x" #'org-latex-preview)
+#+end_src
+*** Roam
+#+begin_src emacs-lisp
+(map! :leader
+      (:prefix ("n" . "notes")
+       (:prefix ("r" . "roam")
+        :desc "capture note"                    "n"     #'org-roam-capture
+        :desc "open random note"                "a"     #'org-roam-node-random
+        :desc "find note"                       "f"     #'org-roam-node-find
+        :desc "find ref"                        "F"     #'org-roam-ref-find
+        :desc "toggle roam buffer"              "r"     #'org-roam-buffer-toggle
+        :desc "insert note"                     "i"     #'org-roam-node-insert
+        :desc "insert immediate note"           "I"     #'org-roam-insert-immediate
+        :desc "rg search roam"                  "g"     #'org-roam-rg-search
+        :desc "tag (roam)"                      "t"     #'org-roam-tag-add
+        :desc "sync db"                         "s"     #'org-roam-db-sync
+        :desc "find project"                    "p"     #'my/org-roam-find-project
+        :desc "capture task"                    "t"     #'my/org-roam-capture-task
+        :desc "capture inbox"                   "b"     #'my/org-roam-capture-inbox
+        :desc "open inbox"                      "B"     #'my/org-roam-open-inbox
+        :desc "cite"                            "c"     #'helm-bibtex
+        (:prefix ("o" . "node properties")
+         :desc "add alias"              "a"     #'org-roam-alias-add
+         :desc "remove alias"           "A"     #'org-roam-alias-remove
+         :desc "add ref"                "r"     #'org-roam-ref-add
+         :desc "remove ref"             "R"     #'org-roam-ref-remove
+         :desc "add tag"                "t"     #'org-roam-tag-add
+         :desc "remove tag"             "T"     #'org-roam-tag-remove
+         )
+        (:prefix ("m" . "transclusion")
+         :desc "make link"               "m"     #'org-transclusion-make-from-link
+         :desc "transclusion mode"       "t"     #'org-transclusion-mode
+         :desc "add at point"            "a"     #'org-transclusion-add-at-point
+         :desc "add all in buffer"       "A"     #'org-transclusion-add-all-in-buffer
+         :desc "remove at point"         "r"     #'org-transclusion-remove-at-point
+         :desc "remove all in buffer"    "R"     #'org-transclusion-remove-all-in-buffer
+         :desc "start live edit"         "s"     #'org-transclusion-live-sync-start-at-point
+         :desc "stop live edit"          "S"     #'org-transclusion-live-sync-exit-at-point)
+        (:prefix ("u" . "ORUI")
+         :desc "Open Orui" "o" #'org-roam-ui-open
+         :desc "Zoom in on current node" "z" #'org-roam-ui-node-zoom
+         :desc "Local node focus" "l" #'org-roam-ui-node-local))))
+#+end_src
+*** Search
+#+begin_src emacs-lisp
+(map! :leader :prefix ("s" . "search")
+      :desc "Search Org" "a" #'org-roam-rg-search)
+#+end_src
 ** Window
 Window rotation is nice, and can be found under =SPC w r= and =SPC w R=.
 /Layout/ rotation is also nice though. Let's stash this under =SPC w SPC=, inspired
@@ -1581,4 +3200,11 @@ navigation/swapping commands.
       :desc "under_score" "_" #'string-inflection-underscore
       :desc "Upper_Score" "u" #'string-inflection-capital-underscore
       :desc "UP_CASE" "U" #'string-inflection-upcase)
+#+end_src
+
+** Server httpd
+#+begin_src emacs-lisp
+(map! :leader :prefix ("t" . "toggle")
+      :desc "Start httpd server" "h" #'httpd-start
+      :desc "Stop httpd server" "H" #'httpd-stop)
 #+end_src
