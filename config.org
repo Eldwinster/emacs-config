@@ -2051,6 +2051,13 @@ file et ne prend pas en compte les prompts
            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                               "#+title: ${title}\n")
            :unnarrowed t)
+          ("p" "Programming Language")
+          ("pe" "Elisp" plain
+          (file "~/org/templates/EmacsLispTemplate.org")
+          :if-new
+          (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                     "#+title: ${title}\n")
+          :unnarrowed t)
           ("r" "random")
           ("rp" "Personne: Nom Prenom" plain
            (file "~/org/templates/PersonTemplate.org")
