@@ -978,6 +978,15 @@ anything to be run.
 #+begin_src emacs-lisp :noweb no-export
 <<run-setup()>>
 #+end_src
+*** Access emacs info page
+Same as ~info-emacs-manual~.
+
+#+begin_src emacs-lisp
+(defun +info-emacs-lisp ()
+  "Display the Emacs intro manual in Info mode."
+  (interactive)
+  (info "eintr"))
+#+end_src
 
 * Packages
 ** Loading instructions
