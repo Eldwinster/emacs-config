@@ -1947,6 +1947,7 @@ set up org-capture.
 ;;  ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t))
 
   (defvar +org-capture-bookmarks (expand-file-name "bookmarks.org" org-directory))
+  (defvar +org-capture-shopping (find-file (car (directory-files (expand-file-name org-directory) t ".*shopping.list\.org"))))
 
   (setq org-capture-templates
   (doct '(
@@ -1954,7 +1955,7 @@ set up org-capture.
            :file +org-capture-todo-file
            :prepend t
            :type entry
-           :template ("* %{todo-state} %^{Description}"
+           :template ("* %{todo-state} %^{Description} %^{tag}"
                       ":PROPERTIES:"
                       ":Created: %T"
                       ":END:"
@@ -1967,11 +1968,30 @@ set up org-capture.
            :prepend t
            :type entry
            :headline "Bookmarks"
-           :template ("* %(org-cliplink-capture) %?"
+           :template ("* %(org-cliplink-capture) %^{tag}"
                       ":PROPERTIES:"
                       ":Created: %T"
                       ":END:"
-                      ""))
+                      "%?"))
+          ("Shopping item" :keys "s"
+           :file +org-capture-shopping
+           :prepend t
+           :type entry
+           :headline "Item List"
+           :template ("* %{todo-state} %(org-cliplink-capture) %^{tag}"
+                      ":PROPERTIES:"
+                      ":Created: %T"
+                      ":END:"
+                      "%?")
+           :children (("Must have" :keys "m"
+                       :headline "Must have"
+                       :todo-state "MUSTHAVE")
+                      ("To buy" :keys "t"
+                       :headline "To buy"
+                       :todo-state "TOBUY")
+                      ("Luxury" :keys "l"
+                       :headline "Luxury"
+                       :todo-state "LUXURY")))
           ))))
 #+end_src
 
