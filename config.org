@@ -2313,17 +2313,22 @@ as a scratchpad. St would open as a scratchpad and then ~emacs~ would be
 considered as a regular window. Hence, this workaround. See zellij's layouts.
 
 #+begin_src emacs-lisp
-;; (defvar +org-my-bookmarks (expand-file-name "bookmarks.org" org-directory))
+(defvar +org-my-bookmarks (expand-file-name "bookmarks.org" org-directory))
 (defun my/org-roam-open-bookmarks ()
   (interactive)
   (find-file +org-my-bookmarks))
 #+end_src
 
 #+begin_src emacs-lisp
-;; (defvar +org-my-register (expand-file-name ".*main.register\.org" org-directory))
 (defun my/org-roam-open-register ()
   (interactive)
   (find-file (car (directory-files (expand-file-name org-directory) t ".*main.register.org"))))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun my/org-roam-open-shopping ()
+  (interactive)
+  (find-file (car (directory-files (expand-file-name org-directory) t ".*shopping.list\.org"))))
 #+end_src
 
 **** Snippet Helpers
