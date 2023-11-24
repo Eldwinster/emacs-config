@@ -3329,6 +3329,40 @@ and a button to copy the content of the block.
 (advice-add 'org-html-fixed-width     :around #'org-html-block-collapsable)
 (advice-add 'org-html-property-drawer :around #'org-html-block-collapsable)
 #+end_src
+** LaTeX
+*** Compilation
+
+#+begin_src emacs-lisp
+(setq TeX-save-query nil
+      TeX-show-compilation t
+      TeX-command-extra-options "-shell-escape")
+(after! latex
+  (add-to-list 'TeX-command-list '("XeLaTeX" "%`xelatex%(mode)%' %t" TeX-run-TeX nil t)))
+#+end_src
+
+For viewing the PDF, I rather like the pdf-tools viewer. While auctex is trying
+to be nice in recognising that I have some PDF viewing apps installed, I'd
+rather not have it default to using them, so let's re-order the preferences.
+#+begin_src emacs-lisp
+(setq +latex-viewers '(pdf-tools evince zathura okular skim sumatrapdf))
+#+end_src
+
+*** SyncTeX
+
+#+begin_src emacs-lisp
+(after! tex
+  (add-to-list 'TeX-view-program-list '("Evince" "evince %o"))
+  (add-to-list 'TeX-view-program-selection '(output-pdf "Evince")))
+#+end_src
+
+*** Fixes
+
+In case of Emacs28,
+#+begin_src emacs-lisp
+(when EMACS28+
+  (add-hook 'latex-mode-hook #'TeX-latex-mode))
+#+end_src
+
 * Keybinds
 ** Buffer
 #+begin_src emacs-lisp :tangle no
