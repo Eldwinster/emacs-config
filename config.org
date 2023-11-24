@@ -980,13 +980,32 @@ anything to be run.
 <<run-setup()>>
 #+end_src
 *** Access emacs info page
+**** Elisp Intro Manual
 Same as ~info-emacs-manual~.
 
 #+begin_src emacs-lisp
-(defun +info-emacs-lisp ()
-  "Display the Emacs intro manual in Info mode."
+(defun +info-emacs-lisp-intro ()
+  "Display the Elisp intro manual in Info mode."
   (interactive)
   (info "eintr"))
+#+end_src
+
+**** Elisp Reference Manual
+
+#+begin_src emacs-lisp
+(defun +info-emacs-lisp-reference ()
+  "Display the Elisp reference manual in Info mode."
+  (interactive)
+  (info "elisp"))
+#+end_src
+
+**** Org-roam Manual
+
+#+begin_src emacs-lisp
+(defun +org-roam-info ()
+  "Display the Org-roam manual in Info mode."
+  (interactive)
+  (info "org-roam"))
 #+end_src
 
 * Packages
