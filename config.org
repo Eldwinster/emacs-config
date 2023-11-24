@@ -1668,6 +1668,29 @@ in an src_elisp{(after! ...)} block.
 :PROPERTIES:
 :header-args:emacs-lisp: :tangle packages.el :comments no
 :END:
+**** Visuals
+***** Emphasis markers
+
+While ~org-hide-emphasis-markers~ is very nice, it can sometimes make edits which
+occur at the border a bit more fiddley. We can improve this situation without
+sacrificing visual amenities with the =org-appear= package.
+#+begin_src emacs-lisp
+(package! org-appear :recipe (:host github :repo "awth13/org-appear")
+  :pin "eb9f9db40aa529fe4b977235d86494b115281d17")
+#+end_src
+
+#+begin_src emacs-lisp :tangle yes
+(use-package! org-appear
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-appear-autoemphasis t
+        org-appear-autosubmarkers t
+        org-appear-autolinks nil)
+  ;; for proper first-time setup, `org-appear--set-elements'
+  ;; needs to be run after other hooks have acted.
+  (run-at-time nil nil #'org-appear--set-elements))
+#+end_src
+
 **** Extra functionality
 ***** Auto tangle
 [[https://github.com/yilkalargaw/org-auto-tangle][org auto tangle]]
@@ -2857,6 +2880,69 @@ Return nil otherwise."
 
     (car (cl-set-difference src-langs header-langs :test #'string=))))
 #+end_src
+*** Visuals
+
+Here I try to do two things: improve the styling of the various documents, via
+font changes etc, and also propagate colours from the current theme.
+
+**** Font Display
+
+Mixed pitch is great. As is ~+org-pretty-mode~, let's use them.
+#+begin_src emacs-lisp
+(add-hook 'org-mode-hook #'+org-pretty-mode)
+#+end_src
+
+Let's make headings a bit bigger
+#+begin_src emacs-lisp
+(custom-set-faces!
+  '(outline-1 :weight extra-bold :height 1.25)
+  '(outline-2 :weight bold :height 1.15)
+  '(outline-3 :weight bold :height 1.12)
+  '(outline-4 :weight semi-bold :height 1.09)
+  '(outline-5 :weight semi-bold :height 1.06)
+  '(outline-6 :weight semi-bold :height 1.03)
+  '(outline-8 :weight semi-bold)
+  '(outline-9 :weight semi-bold))
+#+end_src
+
+And the same with the title.
+#+begin_src emacs-lisp
+(custom-set-faces!
+  '(org-document-title :height 1.2))
+#+end_src
+
+It seems reasonable to have deadlines in the error face when they're passed.
+#+begin_src emacs-lisp
+(setq org-agenda-deadline-faces
+      '((1.001 . error)
+        (1.0 . org-warning)
+        (0.5 . org-upcoming-deadline)
+        (0.0 . org-upcoming-distant-deadline)))
+#+end_src
+
+We can then have quote blocks stand out a bit more by making them /italic/.
+#+begin_src emacs-lisp
+(setq org-fontify-quote-and-verse-blocks t)
+#+end_src
+
+Org files can be rather nice to look at, particularly with some of the
+customisations here. This comes at a cost however, expensive font-lock.
+Feeling like you're typing through molasses in large files is no fun, but there
+is a way I can defer font-locking when typing to make the experience more
+responsive.
+#+begin_src emacs-lisp
+(defun locally-defer-font-lock ()
+  "Set jit-lock defer and stealth, when buffer is over a certain size."
+  (when (> (buffer-size) 50000)
+    (setq-local jit-lock-defer-time 0.05
+                jit-lock-stealth-time 1)))
+
+(add-hook 'org-mode-hook #'locally-defer-font-lock)
+#+end_src
+Apparently this causes issues with some people, but I haven't noticed anything
+problematic beyond the expected slight delay in some fontification, so until I
+do I'll use the above.
+
 *** Exporting
 **** General settings
 
