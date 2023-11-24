@@ -3650,7 +3650,7 @@ Now that the dashboard is so convenient, I'll want to make it easier to get to.
 #+begin_src emacs-lisp
 (map! :leader
       (:prefix "b"
-       :desc "New empty Org buffer" "o" #'+evil-buffer-org-new))
+       :desc "New empty Org buffer" "o" #'evil-buffer-org-new))
 #+end_src
 
 *** Link
