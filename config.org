@@ -2224,51 +2224,128 @@ set up org-capture.
 ;;  ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t))
 
   (defvar +org-capture-bookmarks (expand-file-name "bookmarks.org" org-directory))
-  (defvar +org-capture-shopping (find-file (car (directory-files (expand-file-name org-directory) t ".*shopping.list\.org"))))
+  (defvar +org-capture-shopping
+    (car (directory-files (expand-file-name org-directory) t ".*shopping.list.org")))
+  (defvar +org-capture-to-read
+    (car (directory-files (expand-file-name org-directory) t ".*to.read.org")))
 
+  ;;; TODO change personal todo to personal and add children for todo, notes, idea, etc... all in your todo file add the according groups in org-super-agenda
   (setq org-capture-templates
   (doct '(
           ("Personal todo" :keys "t"
            :file +org-capture-todo-file
            :prepend t
+           :headline "TODOs"
            :type entry
-           :template ("* %{todo-state} %^{Description} %^{tag}"
+           :template ("* TODO %?"
                       ":PROPERTIES:"
                       ":Created: %T"
                       ":END:"
+                      "%i %a"))
+          ;; ("Journal" :keys "j"
+          ;;  :file +org-capture-journal-file
+          ;;  :datetree t
+          ;;  :prepend t
+          ;;  :type entry
+          ;;  :template ("* %U %?"
+          ;;             "%i %a"))
+          ("Interesting" :keys "i"
+           :file +org-capture-to-read
+           :prepend t
+           :type entry
+           :template ("* [ ] %{desc} :%{i-type}:"
+                      "%i %a"
                       "%?")
-           :children (("TODO"  :keys "1"
-                       :headline   "TODOs"
-                       :todo-state "TODO")))
+           :children (("Webpage" :keys "w"
+                       :headline "Webpage"
+                       :desc "%(org-cliplink-capture)"
+                       :i-type "read:web")
+                      ("Article" :keys "a"
+                       :headline "Article"
+                       :desc "%(org-cliplink-capture)"
+                       :i-type "read:research")
+                      ("Information" :keys "i"
+                       :headline "Information"
+                       :desc "%(org-cliplink-capture)"
+                       :i-type "read:information")))
           ("Bookmark" :keys "b"
            :file +org-capture-bookmarks
            :prepend t
            :type entry
-           :headline "Bookmarks"
-           :template ("* %(org-cliplink-capture) %^{tag}"
+           :template (
+                      "* %{desc} :%{i-type}:"
                       ":PROPERTIES:"
                       ":Created: %T"
                       ":END:"
-                      "%?"))
-          ("Shopping item" :keys "s"
-           :file +org-capture-shopping
-           :prepend t
-           :type entry
-           :headline "Item List"
-           :template ("* %{todo-state} %(org-cliplink-capture) %^{tag}"
-                      ":PROPERTIES:"
-                      ":Created: %T"
-                      ":END:"
-                      "%?")
-           :children (("Must have" :keys "m"
-                       :headline "Must have"
-                       :todo-state "MUSTHAVE")
-                      ("To buy" :keys "t"
-                       :headline "To buy"
-                       :todo-state "TOBUY")
-                      ("Luxury" :keys "l"
-                       :headline "Luxury"
-                       :todo-state "LUXURY")))
+                      "%?"
+                      )
+           :desc "%(org-cliplink-capture) "
+           :children (
+                      ("Web application" :keys "w"
+                       :headline "Web Application"
+                       :i-type "webApp")
+                      ("blog" :keys "b"
+                       :headline "Blog"
+                       :children (("default" :keys "d"
+                                   :i-type "%^{tag}")
+                                  ("osr" :keys "o"
+                                   :i-type "blog:osr:%^{tag}")
+                                  ("security" :keys "s"
+                                   :i-type "blog:security:%^{tag}")))
+                      ("cheatsheet" :keys "c"
+                       :headline "Cheatsheet"
+                       :i-type "cheatsheet:%^{tag}")
+                      ("default" :keys "n"
+                       :headline "Bookmarks"
+                       :i-type "%^{tag}")
+                      ("documentation" :keys "d"
+                       :headline "Documentation"
+                       :i-type "doc:%^{tag}")
+                      ("emacs" :keys "e"
+                       :headline "Emacs"
+                       :i-type "emacs:%^{tag}")
+                      ("forums" :keys "f"
+                       :headline "Forums"
+                       :i-type "forums:%^{tag}")
+                      ("linux" :keys "l"
+                       :headline "Linux"
+                       :i-type "linux:%^{tag}")
+                      ("reddit" :keys "r"
+                       :headline "Reddit"
+                       :i-type "reddit:%^{tag}")
+                      ("repository" :keys "g"
+                       :headline "Repository"
+                       :children (("github" :keys "h"
+                                   :i-type "github:repository:%^{tag}")
+                                  ("gitlab" :keys "l"
+                                   :i-type "gitlab:repository:%^{tag}")))
+                      ("shop" :keys "p"
+                       :headline "Shop"
+                       :i-type "shop:%^{tag}")
+                      ("video" :keys "v"
+                       :headline "Video"
+                       :i-type "video:youtube:%^{tag}")
+                      ))
+          ;; ("Shopping item" :keys "s"
+          ;;  :file +org-capture-shopping
+          ;;  :prepend t
+          ;;  :headline "Item List"
+          ;;  :template ("* %{todo-state} %(org-cliplink-capture) %?"
+          ;;             ":PROPERTIES:"
+          ;;             ":Created: %T"
+          ;;             ":END:")
+          ;;  :children (("Kickstarter" :keys "k"
+          ;;              :headline "Kickstarter"
+          ;;              :todo-state "KICKSTARTER")
+          ;;             ("Must have" :keys "m"
+          ;;              :headline "Must have"
+          ;;              :todo-state "MUSTHAVE")
+          ;;             ("To buy" :keys "t"
+          ;;              :headline "To buy"
+          ;;              :todo-state "TOBUY")
+          ;;             ("Luxury" :keys "l"
+          ;;              :headline "Luxury"
+          ;;              :todo-state "LUXURY")))
           ))))
 #+end_src
 
@@ -2348,13 +2425,12 @@ file et ne prend pas en compte les prompts
            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                               "#+title: ${title}\n")
            :unnarrowed t)
-          ("p" "Programming Language")
-          ("pe" "Elisp" plain
-          (file "~/org/templates/EmacsLispTemplate.org")
-          :if-new
-          (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                     "#+title: ${title}\n")
-          :unnarrowed t)
+          ("p" "Project" plain
+           (file "~/org/templates/ProjectTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
           ("r" "random")
           ("rp" "Personne: Nom Prenom" plain
            (file "~/org/templates/PersonTemplate.org")
