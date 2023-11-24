@@ -3219,6 +3219,8 @@ of unnecessary keystrokes --- we can simply bind common actions to a single key!
         :desc "Previous buffer" :ne "p" #'previous-buffer
         :desc "Set theme" :ne "t" #'consult-theme
         :desc "Quit" :ne "Q" #'save-buffers-kill-terminal
+        :desc "Open org" :ne "o" (cmd! (find-file org-directory))
+        :desc "Open rss feed" :ne "e" (cmd! (elfeed))
         :desc "Show keybindings" :ne "h" (cmd! (which-key-show-keymap '+doom-dashboard-mode-map))))
 
 (add-transient-hook! #'+doom-dashboard-mode (+doom-dashboard-setup-modified-keymap))
