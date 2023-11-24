@@ -202,7 +202,7 @@ fold                         ; (nigh) universal code folding
 ;;parinfer                   ; turn lisp into python, sort of
 ;; rotate-text                  ; cycle region at point between text candidates
 snippets                     ; my elves. They type so I don't have to
-;;word-wrap                  ; soft wrapping with language-aware indent
+word-wrap                  ; soft wrapping with language-aware indent
 #+end_src
 #+name: doom-emacs
 #+begin_src emacs-lisp
@@ -2089,6 +2089,95 @@ Now, by default, LSPs don't really function at all in ~src~ blocks.
   '("go" "python" "ipython" "bash" "sh" "haskell" "yaml"))
 (dolist (lang org-babel-lang-list)
   (eval `(lsp-org-babel-enable ,lang)))
+#+end_src
+
+**** Super agenda
+
+The agenda is nice, but a souped up version is nicer.
+#+begin_src emacs-lisp :noweb-ref none :tangle packages.el
+(package! org-super-agenda :pin "f4f528985397c833c870967884b013cf91a1da4a")
+#+end_src
+
+#+begin_src emacs-lisp
+(use-package! org-super-agenda
+  :commands org-super-agenda-mode)
+#+end_src
+
+#+begin_src emacs-lisp
+(after! org-agenda
+  (let ((inhibit-message t))
+    (org-super-agenda-mode)))
+
+(setq org-agenda-skip-scheduled-if-done t
+      org-agenda-skip-deadline-if-done t
+      org-agenda-include-deadlines t
+      org-agenda-block-separator nil
+      org-agenda-tags-column 100 ;; from testing this seems to be a good value
+      org-agenda-compact-blocks t)
+
+(setq org-agenda-custom-commands
+      '(
+        ("b" "Bookmarks"
+         ((alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:name "Bookmarks"
+                           :tag "bookmark")
+                          (:discard (:anything t))
+                          ))))))
+        ("o" "Overview"
+         ((agenda "" ((org-agenda-span 'day)
+                      (org-super-agenda-groups
+                       '((:name "Today"
+                          :time-grid t
+                          :date today
+                          :todo "TODAY"
+                          :scheduled today
+                          :order 1)))))
+          (alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:name "Next to do"
+                           :todo "NEXT"
+                           :order 1)
+                          (:name "Important"
+                           :tag "Important"
+                           :priority "A"
+                           :order 6)
+                          (:name "Due Today"
+                           :deadline today
+                           :order 2)
+                          (:name "Due Soon"
+                           :deadline future
+                           :order 8)
+                          (:name "Overdue"
+                           :deadline past
+                           :order 7)
+                          (:name "Assignments"
+                           :tag "Assignment"
+                           :order 10)
+                          (:name "Issues"
+                           :tag "Issue"
+                           :order 12)
+                          (:discard (:anything t))))))))
+        ("p" "Project"
+         ((alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '(
+                          (:name "Projects"
+                           :todo "PROJ")
+                          (:name "Tasks"
+                           :and (:tag "project" :not (:todo "PROJ")))
+                          (:discard (:anything t))))))))
+        ("r" "To Read"
+         ((alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '((:name "Books"
+                           :and (:tag "read" :tag "literature"))
+                          (:name "References"
+                           :and (:tag "read" :tag "reference"))
+                          (:name "To Read"
+                           :and (:tag "read" :todo "[ ]"))
+                          (:discard (:anything t))))))))
+        ))
 #+end_src
 
 **** Capture
