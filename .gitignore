@@ -7,3 +7,4 @@ setup.sh
 
 !publish
 !publish/config.html
+/.custom.el
