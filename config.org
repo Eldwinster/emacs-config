@@ -2818,6 +2818,17 @@ considered as a regular window. Hence, this workaround. See zellij's layouts.
   (find-file (car (directory-files (expand-file-name org-directory) t ".*shopping.list\.org"))))
 #+end_src
 
+#+begin_src emacs-lisp
+(defun +org-agenda-overview ()
+  (interactive)
+  (org-agenda nil "o"))
+(defun +org-agenda-project ()
+  (interactive)
+  (org-agenda nil "p"))
+(defun +org-agenda-task ()
+  (interactive)
+  (org-agenda nil "t"))
+#+end_src
 **** Snippet Helpers
 
 I often want to set =src-block= headers, and it's a pain to
