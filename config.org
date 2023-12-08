@@ -2447,12 +2447,6 @@ Fantastic package which allows you to backlink etc.
 [[https://github.com/org-roam/org-roam][roam]]
 ***** Basic settings
 #+begin_src emacs-lisp
-;; (defcustom org-roam-dailies-directory "daily/"
-;;   "Path to daily-notes.
-;; This path is relative to `org-roam-directory'."
-;;   :group 'org-roam
-;;   :type 'string)
-
 (setq
  org-roam-directory "~/org/"
  org-roam-completion-everywhere nil
@@ -2738,25 +2732,8 @@ create it using the project template."
 
 ******* Add done task from project to journal entry
 
-[[file:~/.emacs.d/.local/straight/repos/org-roam/extensions/org-roam-dailies.el::332][org-roam-dailies--capture source file]]
-
-This seems to cause problems for the rest of the ~org-roam-dailies~ functions.
 #+begin_src emacs-lisp
-;; (defun +org-roam-dailies--capture (time &optional goto)
-;;   "Capture an entry in a daily-note for TIME, creating it if necessary.
-
-;; When GOTO is non-nil, go the note without creating an entry."
-;;   (let
-;;       ;; ((org-roam-directory (expand-file-name org-roam-dailies-directory org-roam-directory))
-;;       ;;   (org-roam-dailies-directory "./"))
-;;     (org-roam-capture- :goto (when goto '(4))
-;;                        :node (org-roam-node-create)
-;;                        :templates org-roam-dailies-capture-templates
-;;                        :props (list :override-default-time time)))
-;;   (when goto (run-hooks '+org-roam-dailies-find-file-hook)))
-#+end_src
-
-#+begin_src emacs-lisp
+(require 'org-roam-dailies)
 (defun my/org-roam-copy-todo-to-today ()
   (interactive)
   (let ((org-refile-keep nil) ;; Set this to nil to delete the original!
