@@ -2363,12 +2363,24 @@ set up org-capture.
                        :headline "Web Application"
                        :i-type "webApp")
                       ("blog" :keys "b"
-                       :headline "Blog"
                        :children (("default" :keys "d"
-                                   :i-type "%^{tag}")
+                                   ;; the heading need to be already created otherwise this won't work
+                                   :olp ("Blog" "Default")
+                                   :i-type "blog:%^{tag}")
+                                  ("linux" :keys "l"
+                                   :olp ("Blog" "Linux")
+                                   :i-type "blog:linux:%^{tag}")
+                                  ("ttrpg" :keys "t"
+                                   :olp ("Blog" "TTRPG")
+                                   :i-type "blog:TTRPG:%^{tag}")
+                                  ("video game" :keys "v"
+                                   :olp ("Blog" "Video Games")
+                                   :i-type "blog:videoGame:%^{tag}")
                                   ("osr" :keys "o"
+                                   :olp ("Blog" "OSR")
                                    :i-type "blog:osr:%^{tag}")
                                   ("security" :keys "s"
+                                   :olp ("Blog" "Security")
                                    :i-type "blog:security:%^{tag}")))
                       ("cheatsheet" :keys "c"
                        :headline "Cheatsheet"
@@ -2403,6 +2415,9 @@ set up org-capture.
                       ("video" :keys "v"
                        :headline "Video"
                        :i-type "video:youtube:%^{tag}")
+                      ("video game" :keys "a"
+                       :headline "Video Games"
+                       :i-type "videoGame:%^{tag}")
                       ))
           ;; ("Shopping item" :keys "s"
           ;;  :file +org-capture-shopping
