@@ -2530,6 +2530,15 @@ file et ne prend pas en compte les prompts
            :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                               "#+title: ${title}\n")
            :unnarrowed t)
+          ("w" "personal wiki")
+          ("ws" "Steam Deck")
+          ("wsv" "Video Game" plain
+           (file "~/org/templates/VideoGameTemplate.org")
+           :if-new
+           (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                      "#+title: ${title}\n")
+           :unnarrowed t)
+          ;; ("wsd" "default")
           ("z" "Zettelkasten")
           ("zz" "Zettel" plain
            (file "~/org/templates/ZettelTemplate.org")
