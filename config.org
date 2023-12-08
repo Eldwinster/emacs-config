@@ -2736,7 +2736,8 @@ create it using the project template."
 (require 'org-roam-dailies)
 (defun my/org-roam-copy-todo-to-today ()
   (interactive)
-  (let ((org-refile-keep nil) ;; Set this to nil to delete the original!
+  ;; if nil this will delete everything that is below the entry
+  (let ((org-refile-keep t) ;; Set this to nil to delete the original!
         (org-roam-dailies-capture-templates
          '(("t" "tasks" entry "%?"
             :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n#+filetags: :dailies:\n\n" ("Tasks")))))
