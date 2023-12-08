@@ -2169,11 +2169,30 @@ The agenda is nice, but a souped up version is nicer.
 
 (setq org-agenda-custom-commands
       '(
-        ("b" "Bookmarks"
+        ("b" "Bookmark"
+         ((tags "bookmark" ((org-agenda-overriding-header "")
+                            (org-super-agenda-groups
+                             '(
+                               (:name "Blog"
+                                :tag "blog")
+                               (:name "Shop"
+                                :tag "shop")
+                               (:name "Reddit"
+                                :tag "reddit")
+                               (:name "Tool"
+                                :tag "tool")
+                               (:name "Hacking"
+                                :tag ("hack" "security"))
+                               (:name "Cheatsheet"
+                                :tag "cheatsheet")
+                               (:name "Youtube"
+                                :tag "youtube")
+                               (:discard (:anything t))))))))
+        ("d" "Dailies"
          ((alltodo "" ((org-agenda-overriding-header "")
                        (org-super-agenda-groups
-                        '((:name "Bookmarks"
-                           :tag "bookmark")
+                        '((:name "Task Done"
+                           :and (:tag "dailies" :todo "DONE"))
                           (:discard (:anything t))
                           ))))))
         ("o" "Overview"
@@ -2216,8 +2235,6 @@ The agenda is nice, but a souped up version is nicer.
                         '(
                           (:name "Projects"
                            :todo "PROJ")
-                          (:name "Tasks"
-                           :and (:tag "project" :not (:todo "PROJ")))
                           (:discard (:anything t))))))))
         ("r" "To Read"
          ((alltodo "" ((org-agenda-overriding-header "")
@@ -2228,6 +2245,15 @@ The agenda is nice, but a souped up version is nicer.
                            :and (:tag "read" :tag "reference"))
                           (:name "To Read"
                            :and (:tag "read" :todo "[ ]"))
+                          (:discard (:anything t))))))))
+        ("t" "Task"
+         ((alltodo "" ((org-agenda-overriding-header "")
+                       (org-super-agenda-groups
+                        '(
+                          (:name "DO IT"
+                           :and (:tag "project" :tag "task" :priority "A"))
+                          (:name "Projects' Tasks"
+                           :and (:tag "project" :tag "task"))
                           (:discard (:anything t))))))))
         ))
 #+end_src
