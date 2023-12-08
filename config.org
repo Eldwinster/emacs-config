@@ -2756,9 +2756,8 @@ create it using the project template."
 
 (add-to-list 'org-after-todo-state-change-hook
              (lambda ()
-               (dolist (todo-state '("DONE" "KILL" "[X]" "YES" "NO"))
-               (when (equal org-state todo-state)
-                 (my/org-roam-copy-todo-to-today)))))
+               (when (equal org-state "DONE")
+                 (my/org-roam-copy-todo-to-today))))
 
 #+end_src
 
