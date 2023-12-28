@@ -3845,6 +3845,7 @@ of unnecessary keystrokes --- we can simply bind common actions to a single key!
         :desc "Quit" :ne "Q" #'save-buffers-kill-terminal
         :desc "Open org" :ne "o" (cmd! (find-file org-directory))
         :desc "Open rss feed" :ne "e" (cmd! (elfeed))
+        :desc "Open agenda" :ne "a" (cmd! (org-agenda))
         :desc "Show keybindings" :ne "h" (cmd! (which-key-show-keymap '+doom-dashboard-mode-map))))
 
 (add-transient-hook! #'+doom-dashboard-mode (+doom-dashboard-setup-modified-keymap))
@@ -3868,7 +3869,7 @@ Now that the dashboard is so convenient, I'll want to make it easier to get to.
        :desc "Dired jump to current" "j" #'dired-jump)
       (:after dired
        (:map dired-mode-map
-        :desc "Peep-dired image previews" "e p" #'peep-dired
+        :desc "Dired image previews" "e p" #'dired-preview-mode
         :desc "Dired view file" "e v" #'dired-view-file)))
 
 (evil-define-key 'normal dired-mode-map
@@ -3894,10 +3895,6 @@ Now that the dashboard is so convenient, I'll want to make it easier to get to.
   (kbd "% u") 'dired-upcase
   (kbd "; d") 'epa-dired-do-decrypt
   (kbd "; e") 'epa-dired-do-encrypt)
-(evil-define-key 'normal peep-dired-mode-map
-  (kbd "j") 'peep-dired-next-file
-  (kbd "k") 'peep-dired-prev-file)
-(add-hook 'peep-dired-hook 'evil-normalize-keymaps)
 #+end_src
 ** Magit
 #+begin_src emacs-lisp
@@ -3991,6 +3988,7 @@ There also seem to be a few keybindings which use =hjkl=, but miss arrow key equ
         :desc "capture inbox"                   "b"     #'my/org-roam-capture-inbox
         :desc "open inbox"                      "B"     #'my/org-roam-open-inbox
         :desc "cite"                            "c"     #'helm-bibtex
+        :desc "find literature"                 "l"     #'my/org-roam-find-literature
         (:prefix ("o" . "node properties")
          :desc "add alias"              "a"     #'org-roam-alias-add
          :desc "remove alias"           "A"     #'org-roam-alias-remove
