@@ -1131,6 +1131,15 @@ the mode on startup, let's prevent installation of the package.
 #+begin_src emacs-lisp :tangle packages.el
 (package! evil-escape :disable t)
 #+end_src
+*** IELM
+
+This is to solve this bug:
+
+[[https://github.com/doomemacs/doomemacs/issues/7022][doomemacs/doomemacs#7022 IELM: "Error running timer ‘jit-lock-stealth-fontify...]]
+
+#+begin_src emacs-lisp
+(setq ielm-font-lock-keywords nil)
+#+end_src
 
 *** Consult
 
