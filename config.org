@@ -189,6 +189,7 @@ doom-quit                    ; DOOM quit-message prompts when you quit Emacs
 workspaces                   ; tab emulation, persistence & separate workspaces
 ;; zen                          ; distraction-free coding or writing
 #+end_src
+
 #+name: doom-editor
 #+begin_src emacs-lisp
 (evil +everywhere)           ; come to the dark side, we have cookies
@@ -204,6 +205,7 @@ fold                         ; (nigh) universal code folding
 snippets                     ; my elves. They type so I don't have to
 word-wrap                  ; soft wrapping with language-aware indent
 #+end_src
+
 #+name: doom-emacs
 #+begin_src emacs-lisp
 (dired +icons)               ; making dired pretty [functional]
@@ -260,10 +262,12 @@ pdf                          ; pdf enhancements
 ;; upload                       ; map local to remote projects via ssh/ftp
 #+end_src
 #+name: doom-os
+
 #+begin_src emacs-lisp
 ;; (:if IS-MAC macos)  ; improve compatibility with macOS
 tty               ; improve the terminal Emacs experience
 #+end_src
+
 **** Language support
 We can be rather liberal with enabling support for languages as the associated
 packages/configuration are (usually) only loaded when first opening an
@@ -442,7 +446,8 @@ This way whenever fonts are missing, after Doom's UI has initialised, a warning
 listing the missing fonts should appear for at least half a second.
 **** Theme, transparency and modeline
 As I like pywal, I tried to find a way to use it within emacs. However, this doesn't look that good most of the time. By that I mean that I lose in lisibility so that quite inefficient way to use a theme.
-That why I set a fixed theme within emacs, pywal be damned I prefer to see what I'm doing than using a shiny useless tool. I still keep the code maybe be there is a way to fix some color and while keeping the feature of wal in some aspects.
+That why I set a fixed theme within emacs, pywal be damned I prefer to see what I'm doing than using a shiny useless tool. I still keep the code. Perhaps there is a way to fix some color and while keeping the feature of wal in some aspects.
+
 #+begin_src emacs-lisp :tangle no
 (defvar my-wal-colors nil)
 
@@ -511,6 +516,7 @@ thus not worth noting in the modeline. So, let's conditionally hide it.
 
 (add-hook 'after-change-major-mode-hook #'doom-modeline-conditional-buffer-encoding)
 #+end_src
+
 **** Miscellaneous
 Relative line numbers are fantastic for knowing how far away line numbers are,
 then =ESC 12 <UP>= gets you exactly where you think.
@@ -2766,21 +2772,23 @@ file et ne prend pas en compte les prompts
 #+end_src
 
 ***** Org-noter
+
 #+begin_src emacs-lisp :noweb-ref none :tangle packages.el
 (package! org-noter-pdftools)
 #+end_src
+
 #+begin_src emacs-lisp :noweb-ref none :tangle yes
 (use-package! org-noter
   :after (:any org pdf-view)
   :config
-(use-package org-noter
-  :config
-  (setq
-   org-noter-notes-window-location 'other-frame
-   org-noter-always-create-frame nil
-   org-noter-hide-other nil
-   org-noter-notes-search-path '("~/org")))
-(require 'org-noter-pdftools))
+  (use-package org-noter
+    :config
+    (setq
+     org-noter-notes-window-location 'other-frame
+     org-noter-always-create-frame nil
+     org-noter-hide-other nil
+     org-noter-notes-search-path '("~/org")))
+  (require 'org-noter-pdftools))
 
 (use-package org-pdftools
   :hook (org-mode . org-pdftools-setup-link))
@@ -2818,6 +2826,7 @@ With a prefix ARG, remove start location."
   (with-eval-after-load 'pdf-annot
     (add-hook 'pdf-annot-activate-handler-functions #'org-noter-pdftools-jump-to-note)))
 #+end_src
+
 ***** Custom functions
 ****** Regex
 #+begin_src emacs-lisp
