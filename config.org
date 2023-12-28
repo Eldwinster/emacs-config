@@ -2986,7 +2986,7 @@ can perhaps use in an other way.
 
 ******** Add project to agenda and search/create project.
 
-#+begin_src emacs-lisp :tangle no
+#+begin_src emacs-lisp :noweb-ref none :tangle no
 (defun my/org-roam-project-finalize-hook ()
   "Adds the captured project file to `org-agenda-files' if the
 capture was not aborted."
