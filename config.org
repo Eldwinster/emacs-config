@@ -497,15 +497,21 @@ As I like my wallpaper, I quite like transparency, so here it is.
   (set-frame-parameter (selected-frame) 'alpha value))
 #+end_src
 
+#+begin_quote
 However, by default ~red~ text is used in the ~modeline~, so let's make that orange
 so I don't feel like something's gone /wrong/ when editing files.
+#+end_quote
+
 #+begin_src emacs-lisp
 (custom-set-faces!
   '(doom-modeline-buffer-modified :foreground "orange"))
 #+end_src
 
+#+begin_quote
 While we're modifying the modeline, =LF UTF-8= is the default file encoding, and
 thus not worth noting in the modeline. So, let's conditionally hide it.
+#+end_quote
+
 #+begin_src emacs-lisp
 (defun doom-modeline-conditional-buffer-encoding ()
   "We expect the encoding to be LF UTF-8, so only show the modeline when this is not the case"
