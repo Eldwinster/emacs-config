@@ -1279,10 +1279,25 @@ let's improve that memory.
 #+end_src
 
 #+begin_src emacs-lisp
-(after! sh-script
-  (set-company-backend! 'sh-mode
-    '(company-shell :with company-yasnippet)))
+;; (after! sh-script
+;;   (set-company-backend! 'sh-mode
+;;     '(company-shell :with company-yasnippet)))
 #+end_src
+
+**** Plain Text
+
+~Ispell~ is nice, let's have it in ~text~, ~markdown~, and ~GFM~.
+#+begin_src emacs-lisp
+(set-company-backend!
+  '(text-mode
+    markdown-mode)
+  '(:seperate
+    company-ispell
+    company-files
+    company-yasnippet))
+#+end_src
+We then configure the dictionary we're using in [[*Ispell][Ispell]].
+
 *** Projectile
 
 #+begin_quote
