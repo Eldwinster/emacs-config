@@ -2943,7 +2943,7 @@ create it using the project template."
                      :templates '(("p" "project" plain "** TODO %? :task:\n:PROPERTIES:\n:CREATED: %T\n:END:"
                                    :target ("~/org/templates/ProjectTemplate.org")
                                    :if-new (file+olp "${slug}.org"
-                                                          ("Tasks"))))))
+                                                     ("Tasks"))))))
 
 #+end_src
 
@@ -2954,7 +2954,7 @@ create it using the project template."
 (defun my/org-roam-copy-todo-to-today ()
   (interactive)
   ;; if nil this will delete everything that is below the entry
-  (let ((org-refile-keep t) ;; Set this to nil to delete the original!
+  (let ((org-refile-keep nil) ;; Set this to nil to delete the original!
         (org-roam-dailies-capture-templates
          '(("t" "tasks" entry "%?"
             :if-new (file+head+olp "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n#+filetags: :dailies:\n\n" ("Tasks")))))
@@ -2973,8 +2973,12 @@ create it using the project template."
 
 (add-to-list 'org-after-todo-state-change-hook
              (lambda ()
-               (when (equal org-state "DONE")
-                 (my/org-roam-copy-todo-to-today))))
+               (dolist (todo-state '("DONE" "KILL" "BOUGHT"))
+                 (when (equal org-state todo-state)
+                   (my/org-roam-copy-todo-to-today)))
+               ;; (when (equal org-state "DONE")
+               ;;   (my/org-roam-copy-todo-to-today))
+               ))
 
 #+end_src
 
