@@ -2284,368 +2284,310 @@ set up org-capture.
 
 #+begin_src emacs-lisp :noweb no-export
 (after! org-capture
-;; (("t" "Personal todo" entry
-;;   (file+headline +org-capture-todo-file "Inbox")
-;;   "* [ ] %?\n%i\n%a" :prepend t)
-;;  ("n" "Personal notes" entry
-;;   (file+headline +org-capture-notes-file "Inbox")
-;;   "* %u %?\n%i\n%a" :prepend t)
-;;  ("j" "Journal" entry
-;;   (file+olp+datetree +org-capture-journal-file)
-;;   "* %U %?\n%i\n%a" :prepend t)
-;;  ("p" "Templates for projects")
-;;  ("pt" "Project-local todo" entry
-;;   (file+headline +org-capture-project-todo-file "Inbox")
-;;   "* TODO %?\n%i\n%a" :prepend t)
-;;  ("pn" "Project-local notes" entry
-;;   (file+headline +org-capture-project-notes-file "Inbox")
-;;   "* %U %?\n%i\n%a" :prepend t)
-;;  ("pc" "Project-local changelog" entry
-;;   (file+headline +org-capture-project-changelog-file "Unreleased")
-;;   "* %U %?\n%i\n%a" :prepend t)
-;;  ("o" "Centralized templates for projects")
-;;  ("ot" "Project todo" entry #'+org-capture-central-project-todo-file "* TODO %?\n %i\n %a" :heading "Tasks" :prepend nil)
-;;  ("on" "Project notes" entry #'+org-capture-central-project-notes-file "* %U %?\n %i\n %a" :heading "Notes" :prepend t)
-;;  ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t))
+  ;; (("t" "Personal todo" entry
+  ;;   (file+headline +org-capture-todo-file "Inbox")
+  ;;   "* [ ] %?\n%i\n%a" :prepend t)
+  ;;  ("n" "Personal notes" entry
+  ;;   (file+headline +org-capture-notes-file "Inbox")
+  ;;   "* %u %?\n%i\n%a" :prepend t)
+  ;;  ("j" "Journal" entry
+  ;;   (file+olp+datetree +org-capture-journal-file)
+  ;;   "* %U %?\n%i\n%a" :prepend t)
+  ;;  ("p" "Templates for projects")
+  ;;  ("pt" "Project-local todo" entry
+  ;;   (file+headline +org-capture-project-todo-file "Inbox")
+  ;;   "* TODO %?\n%i\n%a" :prepend t)
+  ;;  ("pn" "Project-local notes" entry
+  ;;   (file+headline +org-capture-project-notes-file "Inbox")
+  ;;   "* %U %?\n%i\n%a" :prepend t)
+  ;;  ("pc" "Project-local changelog" entry
+  ;;   (file+headline +org-capture-project-changelog-file "Unreleased")
+  ;;   "* %U %?\n%i\n%a" :prepend t)
+  ;;  ("o" "Centralized templates for projects")
+  ;;  ("ot" "Project todo" entry #'+org-capture-central-project-todo-file "* TODO %?\n %i\n %a" :heading "Tasks" :prepend nil)
+  ;;  ("on" "Project notes" entry #'+org-capture-central-project-notes-file "* %U %?\n %i\n %a" :heading "Notes" :prepend t)
+  ;;  ("oc" "Project changelog" entry #'+org-capture-central-project-changelog-file "* %U %?\n %i\n %a" :heading "Changelog" :prepend t))
 
-  (defvar +org-capture-bookmarks (expand-file-name "bookmarks.org" org-directory))
-  (defvar +org-capture-shopping
-    (car (directory-files (expand-file-name org-directory) t ".*shopping.list.org")))
-  (defvar +org-capture-to-read
-    (car (directory-files (expand-file-name org-directory) t ".*to.read.org")))
+;;; TODO Add some conditionals for non-existing file or doublons etc...
+  (defun my/org-capture--to (regexp-item)
+    "Take a regular expression as an argument and return the corresponding file in the org directory"
+    (car (directory-files org-directory 'full regexp-item)))
 
-  ;;; TODO change personal todo to personal and add children for todo, notes, idea, etc... all in your todo file add the according groups in org-super-agenda
+  (defvar +org-capture-bookmarks (my/org-capture--to ".*bookmarks.org"))
+  (defvar +org-capture-shopping (my/org-capture--to ".*shopping.org"))
+  (defvar +org-capture-to-read (my/org-capture--to ".*to.read.org"))
+
   (setq org-capture-templates
-  (doct '(
-          ("Bookmark" :keys "b"
-           :file +org-capture-bookmarks
-           :prepend t
-           :type entry
-           :template (
-                      "* %{desc} :%{i-type}:"
-                      ":PROPERTIES:"
-                      "Created: %T"
-                      ":END:"
-                      "%?")
-           :desc "%(org-cliplink-capture) "
-           :children (
-                      ("Hobby" :keys "h"
-                       :children (
-                                  ("Artist" :keys "a"
-                                   :olp ("Hobby" "Artist")
-                                   :i-type "artist:%^{tag}")
-                                  ("Data Hoarding" :keys "h"
-                                   :olp ("Hobby" "Data Hoarding")
-                                   :i-type "dataHoarder:%^{tag}")
-                                  ("Default" :keys "d"
-                                   :olp ("Hobby" "Default")
-                                   :i-type "default:%^{tag}")
-                                  ("Music" :keys "m"
-                                   :children (
-                                              ("Default" :keys "d"
-                                               :olp ("Hobby" "Music" "Default")
-                                               :i-type "music:default:%^{tag}")
-                                              ("Forum" :keys "f"
-                                               :olp ("Hobby" "Music" "Forum")
-                                               :i-type "music:forum:%^{tag}")
-                                              ("Shop" :keys "s"
-                                               :olp ("Hobby" "Music" "Shop")
-                                               :i-type "music:shop:%^{tag}")))
-                                  ("TTRPG" :keys "t"
-                                   :children (
-                                              ("Blog" :keys "b"
-                                               :olp ("Hobby" "TTRPG" "Blog")
-                                               :i-type "TTRPG:blog:%^{tag}")
-                                              ("Default" :keys "d"
-                                               :olp ("Hobby" "TTRPG" "Default")
-                                               :i-type "TTRPG:default:%^{tag}")
-                                              ("Information Hub" :keys "i"
-                                               :olp ("Hobby" "TTRPG" "Information Hub")
-                                               :i-type "TTRPG:infoHub:%^{tag}")
-                                              ("Reddit" :keys "r"
-                                               :olp ("Hobby" "TTRPG" "Reddit")
-                                               :i-type "TTRPG:reddit:%^{tag}")
-                                              ("Shop" :keys "s"
-                                               :olp ("Hobby" "TTRPG" "Shop")
-                                               :i-type "TTRPG:shop:%^{tag}")
-                                              ("Tool" :keys "t"
-                                               :children (
-                                                          ("Download Hub" :keys "d"
-                                                           :olp ("Hobby" "TTRPG" "Tool" "Download Hub")
-                                                           :i-type "TTRPG:tool:downloadHub:%^{tag}")
-                                                          ("Repository" :keys "r"
-                                                           :olp ("Hobby" "TTRPG" "Tool" "Repository")
-                                                           :i-type "TTRPG:tool:repository:%^{tag}")
-                                                          ("Web Application" :keys "w"
-                                                           :olp ("Hobby" "TTRPG" "Tool" "Web Application")
-                                                           :i-type "TTRPG:tool:webApp:%^{tag}")))))
-                                  ("Video Game" :keys "v"
-                                   :children (
-                                              ("Blog/Forum" :keys "b"
-                                               :olp ("Hobby" "Video Game" "Blog/Forum")
-                                               :i-type "videoGame:%^{tag}")
-                                              ("Default" :keys "d"
-                                               :olp ("Hobby" "Video Game" "Default")
-                                               :i-type "videoGame:default:%^{tag}")
-                                              ("Guide" :keys "g"
-                                               :olp ("Hobby" "Video Game" "Guide")
-                                               :i-type "videoGame:guide:%^{tag}")
-                                              ("Reddit" :keys "r"
-                                               :olp ("Hobby" "Video Game" "Reddit")
-                                               :i-type "videoGame:reddit:%^{tag}")
-                                              ("Shop" :keys "s"
-                                               :olp ("Hobby" "Video Game" "Shop")
-                                               :i-type "videoGame:shop:%^{tag}")
-                                              ("Tool" :keys "t"
-                                               :children (
-                                                          ("Download Hub" :keys "d"
-                                                           :olp ("Hobby" "Video Game" "Tool" "Download Hub")
-                                                           :i-type "videoGame:tool:downloadHub:%^{tag}")
-                                                          ("Repository" :keys "r"
-                                                           :olp ("Hobby" "Video Game" "Tool" "Repository")
-                                                           :i-type "videoGame:tool:repository:%^{tag}")
-                                                          ("Web Application" :keys "w"
-                                                           :olp ("Hobby" "Video Game" "Tool" "Web Application")
-                                                           :i-type "videoGame:tool:webApp:%^{tag}")))
-                                              ("Wiki" :keys "w"
-                                               :olp ("Hobby" "Video Game" "Wiki")
-                                               :i-type "videoGame:wiki:%^{tag}")))))
-                      ("Random" :keys "r"
-                       :children (
-                                  ("Default" :keys "d"
-                                   :olp ("Random" "Bookmark")
-                                   :i-type "random:default:%^{tag}")))
-                      ("Work" :keys "w"
-                       :children (
-                                  ("Default" :keys "d"
-                                   :olp ("Work" "Default")
-                                   :i-type "default:%^{tag}")
-                                  ("Information Security" :keys "i"
-                                   :children (
-                                              ("Blog" :keys "b"
-                                               :olp ("Work" "Information Security" "Blog")
-                                               :i-type "infoSec:blog:%^{tag}")
-                                              ("Cheatsheet" :keys "c"
-                                               :olp ("Work" "Information Security" "Cheatsheet")
-                                               :i-type "infoSec:cheatsheet:%^{tag}")
-                                              ("Default" :keys "d"
-                                               :olp ("Work" "Information Security" "Default")
-                                               :i-type "infoSec:default:%^{tag}")
-                                              ("Documentation" :keys "o"
-                                               :olp ("Work" "Information Security" "Documentation")
-                                               :i-type "infoSec:doc:%^{tag}")
-                                              ("Information Hub" :keys "i"
-                                               :olp ("Work" "Information Security" "Information Hub")
-                                               :i-type "infoSec:infoHub:%^{tag}")
-                                              ("Search Engine" :keys "s"
-                                               :olp ("Work" "Information Security" "Search Engine")
-                                               :i-type "infoSec:searchEngine:%^{tag}")
-                                              ("Tool" :keys "t"
-                                               :children (
-                                                          ("Repository" :keys "r"
-                                                           :olp ("Work" "Information Security" "Tool" "Repository")
-                                                           :i-type "infoSec:tool:repository:%^{tag}")
-                                                          ("Web Application" :keys "w"
-                                                           :olp ("Work" "Information Security" "Tool" "Web Application")
-                                                           :i-type "infoSec:tool:webApp:%^{tag}")))))
-                                  ("System Administration" :keys "s"
-                                   :children (
-                                              ("Blog" :keys "b"
-                                               :olp ("Work" "System Administration" "Blog")
-                                               :i-type "sysAdmin:blog:%^{tag}")
-                                              ("Cheatsheet" :keys "c"
-                                               :olp ("Work" "System Administration" "Cheatsheet")
-                                               :i-type "sysAdmin:cheatsheet:%^{tag}")
-                                              ("Default" :keys "d"
-                                               :olp ("Work" "System Administration" "Default")
-                                               :i-type "sysAdmin:default:%^{tag}")
-                                              ("Documentation" :keys "o"
-                                               :olp ("Work" "System Administration" "Documentation")
-                                               :i-type "sysAdmin:doc:%^{tag}")
-                                              ("Emacs" :keys "e"
-                                               :olp ("Work" "System Administration" "Emacs")
-                                               :i-type "sysAdmin:emacs:%^{tag}")
-                                              ("Information Hub" :keys "i"
-                                               :olp ("Work" "System Administration" "Information Hub")
-                                               :i-type "sysAdmin:infoHub:%^{tag}")
-                                              ("Search Engine" :keys "s"
-                                               :olp ("Work" "System Administration" "Search Engine")
-                                               :i-type "sysAdmin:searchEngine:%^{tag}")
-                                              ("Tool" :keys "t"
-                                               :children (
-                                                          ("Download Hub" :keys "d"
-                                                           :olp ("Work" "System Administration" "Tool" "Download Hub")
-                                                           :i-type "sysAdmin:tool:downloadHub:%^{tag}")
-                                                          ("Repository" :keys "r"
-                                                           :olp ("Work" "System Administration" "Tool" "Repository")
-                                                           :i-type "sysAdmin:tool:repository:%^{tag}")
-                                                          ("Web Application" :keys "w"
-                                                           :olp ("Work" "System Administration" "Tool" "Web Application")
-                                                           :i-type "sysAdmin:tool:webApp:%^{tag}")))))
-                                  ("Programming" :keys "s"
-                                   :children (
-                                              ("Blog" :keys "b"
-                                               :olp ("Work" "Programming" "Blog")
-                                               :i-type "programming:blog:%^{tag}")
-                                              ("Cheatsheet" :keys "c"
-                                               :olp ("Work" "Programming" "Cheatsheet")
-                                               :i-type "programming:cheatsheet:%^{tag}")
-                                              ("Default" :keys "d"
-                                               :olp ("Work" "Programming" "Default")
-                                               :i-type "programming:default:%^{tag}")
-                                              ("Documentation" :keys "o"
-                                               :olp ("Work" "Programming" "Documentation")
-                                               :i-type "programming:doc:%^{tag}")
-                                              ("Information Hub" :keys "i"
-                                               :olp ("Work" "Programming" "Information Hub")
-                                               :i-type "programming:infoHub:%^{tag}")
-                                              ("Search Engine" :keys "s"
-                                               :olp ("Work" "Programming" "Search Engine")
-                                               :i-type "programming:searchEngine:%^{tag}")
-                                              ("Tool" :keys "t"
-                                               :children (
-                                                          ("Download Hub" :keys "d"
-                                                           :olp ("Work" "Programming" "Tool" "Download Hub")
-                                                           :i-type "programming:tool:downloadHub:%^{tag}")
-                                                          ("Repository" :keys "r"
-                                                           :olp ("Work" "Programming" "Tool" "Repository")
-                                                           :i-type "programming:tool:repository:%^{tag}")
-                                                          ("Web Application" :keys "w"
-                                                           :olp ("Work" "Programming" "Tool" "Web Application")
-                                                           :i-type "programming:tool:webApp:%^{tag}")))))))
-                      )
-)
-          ;; ("Bookmark" :keys "b"
-          ;;  :file +org-capture-bookmarks
-          ;;  :prepend t
-          ;;  :type entry
-          ;;  :template (
-          ;;             "* %{desc} :%{i-type}:"
-          ;;             ":PROPERTIES:"
-          ;;             ":Created: %T"
-          ;;             ":END:"
-          ;;             "%?"
-          ;;             )
-          ;;  :desc "%(org-cliplink-capture) "
-          ;;  :children (
-          ;;             ("Web application" :keys "w"
-          ;;              :headline "Web Application"
-          ;;              :i-type "webApp")
-          ;;             ("blog" :keys "b"
-          ;;              :children (("default" :keys "d"
-          ;;                          ;; the heading need to be already created otherwise this won't work
-          ;;                          :olp ("Blog" "Default")
-          ;;                          :i-type "blog:%^{tag}")
-          ;;                         ("linux" :keys "l"
-          ;;                          :olp ("Blog" "Linux")
-          ;;                          :i-type "blog:linux:%^{tag}")
-          ;;                         ("ttrpg" :keys "t"
-          ;;                          :olp ("Blog" "TTRPG")
-          ;;                          :i-type "blog:TTRPG:%^{tag}")
-          ;;                         ("video game" :keys "v"
-          ;;                          :olp ("Blog" "Video Games")
-          ;;                          :i-type "blog:videoGame:%^{tag}")
-          ;;                         ("osr" :keys "o"
-          ;;                          :olp ("Blog" "OSR")
-          ;;                          :i-type "blog:osr:%^{tag}")
-          ;;                         ("security" :keys "s"
-          ;;                          :olp ("Blog" "Security")
-          ;;                          :i-type "blog:security:%^{tag}")))
-          ;;             ("cheatsheet" :keys "c"
-          ;;              :headline "Cheatsheet"
-          ;;              :i-type "cheatsheet:%^{tag}")
-          ;;             ("default" :keys "n"
-          ;;              :headline "Bookmarks"
-          ;;              :i-type "%^{tag}")
-          ;;             ("documentation" :keys "d"
-          ;;              :headline "Documentation"
-          ;;              :i-type "doc:%^{tag}")
-          ;;             ("emacs" :keys "e"
-          ;;              :headline "Emacs"
-          ;;              :i-type "emacs:%^{tag}")
-          ;;             ("forums" :keys "f"
-          ;;              :headline "Forums"
-          ;;              :i-type "forums:%^{tag}")
-          ;;             ("linux" :keys "l"
-          ;;              :headline "Linux"
-          ;;              :i-type "linux:%^{tag}")
-          ;;             ("reddit" :keys "r"
-          ;;              :headline "Reddit"
-          ;;              :i-type "reddit:%^{tag}")
-          ;;             ("repository" :keys "g"
-          ;;              :headline "Repository"
-          ;;              :children (("github" :keys "h"
-          ;;                          :i-type "github:repository:%^{tag}")
-          ;;                         ("gitlab" :keys "l"
-          ;;                          :i-type "gitlab:repository:%^{tag}")))
-          ;;             ("shop" :keys "p"
-          ;;              :headline "Shop"
-          ;;              :i-type "shop:%^{tag}")
-          ;;             ("video" :keys "v"
-          ;;              :headline "Video"
-          ;;              :i-type "video:youtube:%^{tag}")
-          ;;             ("video game" :keys "a"
-          ;;              :headline "Video Games"
-          ;;              :i-type "videoGame:%^{tag}")
-          ;;             ))
-          ;; ("Personal todo" :keys "t"
-          ;;  :file +org-capture-todo-file
-          ;;  :prepend t
-          ;;  :headline "TODOs"
-          ;;  :type entry
-          ;;  :template ("* TODO %?"
-          ;;             ":PROPERTIES:"
-          ;;             ":Created: %T"
-          ;;             ":END:"
-          ;;             "%i %a"))
-          ;; ("Journal" :keys "j"
-          ;;  :file +org-capture-journal-file
-          ;;  :datetree t
-          ;;  :prepend t
-          ;;  :type entry
-          ;;  :template ("* %U %?"
-          ;;             "%i %a"))
-          ;; ("Interesting" :keys "i"
-          ;;  :file +org-capture-to-read
-          ;;  :prepend t
-          ;;  :type entry
-          ;;  :template ("* [ ] %{desc} :%{i-type}:"
-          ;;             "%i %a"
-          ;;             "%?")
-          ;;  :children (("Webpage" :keys "w"
-          ;;              :headline "Webpage"
-          ;;              :desc "%(org-cliplink-capture)"
-          ;;              :i-type "read:web")
-          ;;             ("Article" :keys "a"
-          ;;              :headline "Article"
-          ;;              :desc "%(org-cliplink-capture)"
-          ;;              :i-type "read:research")
-          ;;             ("Information" :keys "i"
-          ;;              :headline "Information"
-          ;;              :desc "%(org-cliplink-capture)"
-          ;;              :i-type "read:information")))
-          ;; ("Shopping item" :keys "s"
-          ;;  :file +org-capture-shopping
-          ;;  :prepend t
-          ;;  :headline "Item List"
-          ;;  :template ("* %{todo-state} %(org-cliplink-capture) %?"
-          ;;             ":PROPERTIES:"
-          ;;             ":Created: %T"
-          ;;             ":END:")
-          ;;  :children (("Kickstarter" :keys "k"
-          ;;              :headline "Kickstarter"
-          ;;              :todo-state "KICKSTARTER")
-          ;;             ("Must have" :keys "m"
-          ;;              :headline "Must have"
-          ;;              :todo-state "MUSTHAVE")
-          ;;             ("To buy" :keys "t"
-          ;;              :headline "To buy"
-          ;;              :todo-state "TOBUY")
-          ;;             ("Luxury" :keys "l"
-          ;;              :headline "Luxury"
-          ;;              :todo-state "LUXURY")))
-          ))))
-#+end_src
+        (doct '(
+                ;; ("Shopping" :keys "s"
+                ;;  :file )
+                ("Read" :keys "r"
+                 :file +org-capture-to-read
+                 :prepend t
+                 :type entry
+                 :template ("* [ ] %{desc}:read:%{i-type}:"
+                            ":PROPERTIES:"
+                            ":Created: %T"
+                            ":END:"
+                            "%?")
+                 :desc "%(org-cliplink-capture) "
+                 :children (
+                            ("Hobby" :keys "h"
+                             :headline "Hobby"
+                             :i-type "hobby:%^{tag}")
+                            ("Random" :keys "r"
+                             :headline "Random"
+                             :i-type "random:%^{tag}")
+                            ("Work" :keys "w"
+                             :headline "Work"
+                             :i-type "work:%^{tag}")))
+                ("Personal" :keys "p"
+                 :file +org-capture-todo-file
+                 :prepend t
+                 :type entry
+                 :template (
+                            "* TODO %? :%{i-type}:%{extra}"
+                            ":PROPERTIES:"
+                            ":Created: %T"
+                            ":END:")
+                 :children (
+                           ("Task" :keys "t"
+                            :headline "Tasks"
+                            :i-type "todo:%^{tag}"
+                            :extra "")
+                           ("Sceduled Task" :keys "s"
+                            :headline "Scheduled"
+                            :i-type "scheduled:%^{tag}"
+                            :extra "\nSCHEDULED: %^{Start time:}t")
+                           ("Deadline Task" :keys "d"
+                            :headline "Deadline"
+                            :i-type "deadline:%^{tag}"
+                            :extra "\nDEADLINE: %^{Deadline:}t")
+                           ))
+                ("Bookmark" :keys "b"
+                 :file +org-capture-bookmarks
+                 :prepend t
+                 :type entry
+                 :template (
+                            "* %{desc}:%{i-type}:"
+                            ":PROPERTIES:"
+                            ":Created: %T"
+                            ":END:"
+                            "%?")
+                 :desc "%(org-cliplink-capture) "
+                 :children (
+                            ("Hobby" :keys "h"
+                             :children (
+                                        ("Artist" :keys "a"
+                                         :olp ("Hobby" "Artist")
+                                         :i-type "artist:%^{tag}")
+                                        ("Data Hoarding" :keys "h"
+                                         :olp ("Hobby" "Data Hoarding")
+                                         :i-type "dataHoarder:%^{tag}")
+                                        ("Default" :keys "d"
+                                         :olp ("Hobby" "Default")
+                                         :i-type "default:%^{tag}")
+                                        ("Hardware" :keys "w"
+                                         :olp ("Hobby" "Hardware")
+                                         :i-type ":hardware:%^{tag}")
+                                        ("Music" :keys "m"
+                                         :children (
+                                                    ("Default" :keys "d"
+                                                     :olp ("Hobby" "Music" "Default")
+                                                     :i-type "music:default:%^{tag}")
+                                                    ("Forum" :keys "f"
+                                                     :olp ("Hobby" "Music" "Forum")
+                                                     :i-type "music:forum:%^{tag}")
+                                                    ("Shop" :keys "s"
+                                                     :olp ("Hobby" "Music" "Shop")
+                                                     :i-type "music:shop:%^{tag}")))
+                                        ("TTRPG" :keys "t"
+                                         :children (
+                                                    ("Blog" :keys "b"
+                                                     :olp ("Hobby" "TTRPG" "Blog")
+                                                     :i-type "TTRPG:blog:%^{tag}")
+                                                    ("Default" :keys "d"
+                                                     :olp ("Hobby" "TTRPG" "Default")
+                                                     :i-type "TTRPG:default:%^{tag}")
+                                                    ("Information Hub" :keys "i"
+                                                     :olp ("Hobby" "TTRPG" "Information Hub")
+                                                     :i-type "TTRPG:infoHub:%^{tag}")
+                                                    ("Reddit" :keys "r"
+                                                     :olp ("Hobby" "TTRPG" "Reddit")
+                                                     :i-type "TTRPG:reddit:%^{tag}")
+                                                    ("Shop" :keys "s"
+                                                     :olp ("Hobby" "TTRPG" "Shop")
+                                                     :i-type "TTRPG:shop:%^{tag}")
+                                                    ("Tool" :keys "t"
+                                                     :children (
+                                                                ("Download Hub" :keys "d"
+                                                                 :olp ("Hobby" "TTRPG" "Tool" "Download Hub")
+                                                                 :i-type "TTRPG:tool:downloadHub:%^{tag}")
+                                                                ("Repository" :keys "r"
+                                                                 :olp ("Hobby" "TTRPG" "Tool" "Repository")
+                                                                 :i-type "TTRPG:tool:repository:%^{tag}")
+                                                                ("Web Application" :keys "w"
+                                                                 :olp ("Hobby" "TTRPG" "Tool" "Web Application")
+                                                                 :i-type "TTRPG:tool:webApp:%^{tag}")))))
+                                        ("Video Game" :keys "v"
+                                         :children (
+                                                    ("Blog/Forum" :keys "b"
+                                                     :olp ("Hobby" "Video Game" "Blog/Forum")
+                                                     :i-type "videoGame:%^{tag}")
+                                                    ("Cheatsheet" :keys "c"
+                                                     :olp ("Hobby" "Video Game" "Cheatsheet")
+                                                     :i-type "videoGame:cheatsheet:%^{tag}")
+                                                    ("Default" :keys "d"
+                                                     :olp ("Hobby" "Video Game" "Default")
+                                                     :i-type "videoGame:default:%^{tag}")
+                                                    ("Guide" :keys "g"
+                                                     :olp ("Hobby" "Video Game" "Guide")
+                                                     :i-type "videoGame:guide:%^{tag}")
+                                                    ("Reddit" :keys "r"
+                                                     :olp ("Hobby" "Video Game" "Reddit")
+                                                     :i-type "videoGame:reddit:%^{tag}")
+                                                    ("Shop" :keys "s"
+                                                     :olp ("Hobby" "Video Game" "Shop")
+                                                     :i-type "videoGame:shop:%^{tag}")
+                                                    ("Tool" :keys "t"
+                                                     :children (
+                                                                ("Download Hub" :keys "d"
+                                                                 :olp ("Hobby" "Video Game" "Tool" "Download Hub")
+                                                                 :i-type "videoGame:tool:downloadHub:%^{tag}")
+                                                                ("Repository" :keys "r"
+                                                                 :olp ("Hobby" "Video Game" "Tool" "Repository")
+                                                                 :i-type "videoGame:tool:repository:%^{tag}")
+                                                                ("Web Application" :keys "w"
+                                                                 :olp ("Hobby" "Video Game" "Tool" "Web Application")
+                                                                 :i-type "videoGame:tool:webApp:%^{tag}")))
+                                                    ("Wiki" :keys "w"
+                                                     :olp ("Hobby" "Video Game" "Wiki")
+                                                     :i-type "videoGame:wiki:%^{tag}")))))
+                            ("Random" :keys "r"
+                             :children (
+                                        ("Default" :keys "d"
+                                         :olp ("Random" "Default")
+                                         :i-type "random:default:%^{tag}")))
+                            ("Work" :keys "w"
+                             :children (
+                                        ("Default" :keys "d"
+                                         :olp ("Work" "Default")
+                                         :i-type "default:%^{tag}")
+                                        ("Information Security" :keys "i"
+                                         :children (
+                                                    ("Blog" :keys "b"
+                                                     :olp ("Work" "Information Security" "Blog")
+                                                     :i-type "infoSec:blog:%^{tag}")
+                                                    ("Cheatsheet" :keys "c"
+                                                     :olp ("Work" "Information Security" "Cheatsheet")
+                                                     :i-type "infoSec:cheatsheet:%^{tag}")
+                                                    ("Default" :keys "d"
+                                                     :olp ("Work" "Information Security" "Default")
+                                                     :i-type "infoSec:default:%^{tag}")
+                                                    ("Documentation" :keys "o"
+                                                     :olp ("Work" "Information Security" "Documentation")
+                                                     :i-type "infoSec:doc:%^{tag}")
+                                                    ("Information Hub" :keys "i"
+                                                     :olp ("Work" "Information Security" "Information Hub")
+                                                     :i-type "infoSec:infoHub:%^{tag}")
+                                                    ("Search Engine" :keys "s"
+                                                     :olp ("Work" "Information Security" "Search Engine")
+                                                     :i-type "infoSec:searchEngine:%^{tag}")
+                                                    ("Tool" :keys "t"
+                                                     :children (
+                                                                ("Repository" :keys "r"
+                                                                 :olp ("Work" "Information Security" "Tool" "Repository")
+                                                                 :i-type "infoSec:tool:repository:%^{tag}")
+                                                                ("Web Application" :keys "w"
+                                                                 :olp ("Work" "Information Security" "Tool" "Web Application")
+                                                                 :i-type "infoSec:tool:webApp:%^{tag}")))))
+                                        ("System Administration" :keys "s"
+                                         :children (
+                                                    ("Blog" :keys "b"
+                                                     :olp ("Work" "System Administration" "Blog")
+                                                     :i-type "sysAdmin:blog:%^{tag}")
+                                                    ("Cheatsheet" :keys "c"
+                                                     :olp ("Work" "System Administration" "Cheatsheet")
+                                                     :i-type "sysAdmin:cheatsheet:%^{tag}")
+                                                    ("Default" :keys "d"
+                                                     :olp ("Work" "System Administration" "Default")
+                                                     :i-type "sysAdmin:default:%^{tag}")
+                                                    ("Documentation" :keys "o"
+                                                     :olp ("Work" "System Administration" "Documentation")
+                                                     :i-type "sysAdmin:doc:%^{tag}")
+                                                    ("Emacs" :keys "e"
+                                                     :olp ("Work" "System Administration" "Emacs")
+                                                     :i-type "sysAdmin:emacs:%^{tag}")
+                                                    ("Information Hub" :keys "i"
+                                                     :olp ("Work" "System Administration" "Information Hub")
+                                                     :i-type "sysAdmin:infoHub:%^{tag}")
+                                                    ("Search Engine" :keys "s"
+                                                     :olp ("Work" "System Administration" "Search Engine")
+                                                     :i-type "sysAdmin:searchEngine:%^{tag}")
+                                                    ("Tool" :keys "t"
+                                                     :children (
+                                                                ("Download Hub" :keys "d"
+                                                                 :olp ("Work" "System Administration" "Tool" "Download Hub")
+                                                                 :i-type "sysAdmin:tool:downloadHub:%^{tag}")
+                                                                ("Repository" :keys "r"
+                                                                 :olp ("Work" "System Administration" "Tool" "Repository")
+                                                                 :i-type "sysAdmin:tool:repository:%^{tag}")
+                                                                ("Web Application" :keys "w"
+                                                                 :olp ("Work" "System Administration" "Tool" "Web Application")
+                                                                 :i-type "sysAdmin:tool:webApp:%^{tag}")))))
+                                        ("Programming" :keys "p"
+                                         :children (
+                                                    ("Blog" :keys "b"
+                                                     :olp ("Work" "Programming" "Blog")
+                                                     :i-type "programming:blog:%^{tag}")
+                                                    ("Cheatsheet" :keys "c"
+                                                     :olp ("Work" "Programming" "Cheatsheet")
+                                                     :i-type "programming:cheatsheet:%^{tag}")
+                                                    ("Default" :keys "d"
+                                                     :olp ("Work" "Programming" "Default")
+                                                     :i-type "programming:default:%^{tag}")
+                                                    ("Documentation" :keys "o"
+                                                     :olp ("Work" "Programming" "Documentation")
+                                                     :i-type "programming:doc:%^{tag}")
+                                                    ("Information Hub" :keys "i"
+                                                     :olp ("Work" "Programming" "Information Hub")
+                                                     :i-type "programming:infoHub:%^{tag}")
+                                                    ("Search Engine" :keys "s"
+                                                     :olp ("Work" "Programming" "Search Engine")
+                                                     :i-type "programming:searchEngine:%^{tag}")
+                                                    ("Tool" :keys "t"
+                                                     :children (
+                                                                ("Download Hub" :keys "d"
+                                                                 :olp ("Work" "Programming" "Tool" "Download Hub")
+                                                                 :i-type "programming:tool:downloadHub:%^{tag}")
+                                                                ("Repository" :keys "r"
+                                                                 :olp ("Work" "Programming" "Tool" "Repository")
+                                                                 :i-type "programming:tool:repository:%^{tag}")
+                                                                ("Web Application" :keys "w"
+                                                                 :olp ("Work" "Programming" "Tool" "Web Application")
+                                                                 :i-type "programming:tool:webApp:%^{tag}")))))))))
+                ;; ("Shopping item" :keys "s"
+                ;;  :file +org-capture-shopping
+                ;;  :prepend t
+                ;;  :headline "Item List"
+                ;;  :template ("* %{todo-state} %(org-cliplink-capture) %?"
+                ;;             ":PROPERTIES:"
+                ;;             ":Created: %T"
+                ;;             ":END:")
+                ;;  :children (("Kickstarter" :keys "k"
+                ;;              :headline "Kickstarter"
+                ;;              :todo-state "KICKSTARTER")
+                ;;             ("Must have" :keys "m"
+                ;;              :headline "Must have"
+                ;;              :todo-state "MUSTHAVE")
+                ;;             ("To buy" :keys "t"
+                ;;              :headline "To buy"
+                ;;              :todo-state "TOBUY")
+                ;;             ("Luxury" :keys "l"
+                ;;              :headline "Luxury"
+                ;;              :todo-state "LUXURY")))
+                ))))
+    #+end_src
 
 **** Roam
 Fantastic package which allows you to backlink etc.
