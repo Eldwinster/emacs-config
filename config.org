@@ -1152,7 +1152,12 @@ already clear, and there's no need for a different face.
 (package! dired-open)           ; let me open file with 'l' in dired mode
 (package! dired-toggle-sudo)
 (package! dired-subtree)
+(package! dired-preview)
 #+end_src
+
+Trouve un moyen de hook ~dired-preview-mode~ quand dans un dired buffer y'a des
+fichiers avec des extensions d'image. Si trop compliqué reste sur la solution
+simple mais manuel.
 
 [[https://github.com/renard/dired-toggle-sudo/blob/master/dired-toggle-sudo.el][dired toggle sudo]]
 #+begin_src emacs-lisp :tangle no
