@@ -2203,7 +2203,7 @@ The agenda is nice, but a souped up version is nicer.
                           (:discard (:anything t))
                           ))))))
         ("o" "Overview"
-         ((agenda "" ((org-agenda-span 'day)
+         ((agenda "" ((org-agenda-span 'week)
                       (org-super-agenda-groups
                        '((:name "Today"
                           :time-grid t
