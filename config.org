@@ -3016,36 +3016,43 @@ This is because in ~Qtile~~ I'm unable for now to open ~emacsclient -nw~ in st
 as a scratchpad. St would open as a scratchpad and then ~emacs~ would be
 considered as a regular window. Hence, this workaround. See zellij's layouts.
 
+Emacsclient isn't handle by qtile scratchpad. I've only found two viable
+workaround yet. Either use zellij and its =start-suspended= option or directly
+using emacs. However the last one implies that I need to load all my module each
+time the windows is killed. Which can accidentally happen. Perhaps it's time to
+investigate tecosaur's confpkg that he developed.
+
+A simple function to directly access org-super-agenda's buffer.
+
 #+begin_src emacs-lisp
-(defvar +org-my-bookmarks (expand-file-name "bookmarks.org" org-directory))
-(defun my/org-roam-open-bookmarks ()
+(defun my/org-agenda-view (view)
+  "Use agenda prefix to directly access a specific org-super-agenda custom views. Simply give a valid command to execute."
   (interactive)
-  (find-file +org-my-bookmarks))
+  (org-agenda nil view))
 #+end_src
 
 #+begin_src emacs-lisp
-(defun my/org-roam-open-register ()
+(defun my/org-roam-find-literature ()
+  "Find and open a Literature node by its title or alias. If new
+create it using the project template."
   (interactive)
-  (find-file (car (directory-files (expand-file-name org-directory) t ".*main.register.org"))))
+  ;; Add the project file to the agenda after capture is finished
+  ;; (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
+
+  ;; Select a project file to open, creating it if necessary
+  (org-roam-node-find
+   nil
+   nil
+   (my/org-roam-filter-by-tag "literature")))
 #+end_src
 
 #+begin_src emacs-lisp
-(defun my/org-roam-open-shopping ()
+(defun my/org-find-file (regex-item)
+  "Take a regular expression as an argument and return the corresponding file in the org directory"
   (interactive)
-  (find-file (car (directory-files (expand-file-name org-directory) t ".*shopping.list\.org"))))
+  (find-file (car (directory-files org-directory 'full regex-item))))
 #+end_src
 
-#+begin_src emacs-lisp
-(defun +org-agenda-overview ()
-  (interactive)
-  (org-agenda nil "o"))
-(defun +org-agenda-project ()
-  (interactive)
-  (org-agenda nil "p"))
-(defun +org-agenda-task ()
-  (interactive)
-  (org-agenda nil "t"))
-#+end_src
 **** Snippet Helpers
 
 I often want to set =src-block= headers, and it's a pain to
