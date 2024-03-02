@@ -3923,7 +3923,8 @@ Now we'll just add that under the Org mode link localleader for convenience.
 (map! :map org-mode-map
       :ni "C-c c" #'org-cite-insert
       :ni "C-c f" #'org-ref-insert-cite-link
-      :ni "M-i" #'org-roam-insert-immediate)
+      :ni "M-i" #'org-roam-insert-immediate
+      :ni "M-o" #'org-roam-node-insert)
 #+end_src
 
 *** Motion
